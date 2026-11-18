@@ -36,6 +36,12 @@ class GlassDrawable(
         strokeCap = Paint.Cap.ROUND
     }
 
+    private val gloss = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = line * 0.42f
+        strokeJoin = Paint.Join.ROUND
+    }
+
     private val rect = RectF()
     private val rot = Matrix()
     private var sweep: SweepGradient? = null
@@ -48,6 +54,11 @@ class GlassDrawable(
         val bottom = if (accentFill) Color.argb(30, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(50, 6, 10, 16)
         fill.shader = LinearGradient(0f, 0f, 0f, h, top, bottom, Shader.TileMode.CLAMP)
         rect.set(b.left + line / 2f, b.top + line / 2f, b.right - line / 2f, b.bottom - line / 2f)
+        gloss.shader = LinearGradient(
+            0f, b.top.toFloat(), 0f, b.bottom.toFloat(),
+            intArrayOf(Color.argb(220, 255, 255, 255), Color.argb(110, 255, 255, 255), Color.argb(60, 255, 255, 255)),
+            floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP
+        )
         sweep = null
     }
 
@@ -75,6 +86,7 @@ class GlassDrawable(
             outline.color = Pal.accent
         }
         c.drawRoundRect(rect, radius, radius, outline)
+        c.drawRoundRect(rect, radius, radius, gloss)
     }
 
     override fun getOutline(o: Outline) {
@@ -85,11 +97,13 @@ class GlassDrawable(
     override fun setAlpha(alpha: Int) {
         fill.alpha = alpha
         outline.alpha = alpha
+        gloss.alpha = alpha
     }
 
     override fun setColorFilter(colorFilter: ColorFilter?) {
         fill.colorFilter = colorFilter
         outline.colorFilter = colorFilter
+        gloss.colorFilter = colorFilter
     }
 
     @Suppress("OVERRIDE_DEPRECATION")

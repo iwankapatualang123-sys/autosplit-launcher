@@ -48,6 +48,16 @@ class SlotOverlay(ctx: Context) : View(ctx) {
         strokeWidth = d * 13f
         alpha = 80
     }
+    private val screenGloss = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = maxOf(2.5f, d * 2.6f)
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val frameGloss = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = maxOf(1.5f, d * 1.4f)
+        strokeJoin = Paint.Join.ROUND
+    }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = 11f * d
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -61,6 +71,13 @@ class SlotOverlay(ctx: Context) : View(ctx) {
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         sweep = null
+        val g = android.graphics.LinearGradient(
+            0f, 0f, 0f, h.toFloat(),
+            intArrayOf(Color.argb(230, 255, 255, 255), Color.argb(120, 255, 255, 255), Color.argb(70, 255, 255, 255)),
+            floatArrayOf(0f, 0.4f, 1f), android.graphics.Shader.TileMode.CLAMP
+        )
+        screenGloss.shader = g
+        frameGloss.shader = g
     }
 
     private fun dim(c: Int): Int = Color.argb(90, Color.red(c), Color.green(c), Color.blue(c))
@@ -92,6 +109,7 @@ class SlotOverlay(ctx: Context) : View(ctx) {
             screenPaint.color = Pal.accent
         }
         c.drawRoundRect(box, radius, radius, screenPaint)
+        c.drawRoundRect(box, radius, radius, screenGloss)
 
         if (slots.isEmpty()) return
         getLocationOnScreen(loc)
@@ -108,6 +126,7 @@ class SlotOverlay(ctx: Context) : View(ctx) {
                 )
                 if (sg != null) framePaint.shader = sg else { framePaint.shader = null; framePaint.color = Pal.accent }
                 c.drawRoundRect(box, r, r, framePaint)
+                c.drawRoundRect(box, r, r, frameGloss)
             }
             c.drawText(s.label, s.rect.left - loc[0] + pad, s.rect.top - loc[1] - strip * 0.3f, text)
         }
