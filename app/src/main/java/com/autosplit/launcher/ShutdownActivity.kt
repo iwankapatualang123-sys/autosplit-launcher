@@ -94,7 +94,10 @@ class ShutdownActivity : Activity() {
     )
 
     private fun buildUi(): FrameLayout {
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.argb(190, 0, 0, 0)) }
+        val root = FrameLayout(this).apply { setBackgroundColor(Color.argb(120, 0, 0, 0)) }
+        val real = android.graphics.Point()
+        windowManager.defaultDisplay.getRealSize(real)
+        val col = (real.x * Prefs(this).leftPercent / 100 - dp(28)).coerceAtLeast(dp(340))
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -127,15 +130,32 @@ class ShutdownActivity : Activity() {
             text = "Layar dikunci otomatis saat hitungan habis"
             setTextColor(Pal.MUTED)
             textSize = 13f
-            setPadding(0, 0, 0, dp(20))
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(if (dpm.isAdminActive(admin)) 20 else 8))
         })
+        if (!dpm.isAdminActive(admin)) {
+            box.addView(TextView(this).apply {
+                text = "Izin kunci layar belum aktif. Ketuk di sini untuk mengaktifkan."
+                setTextColor(Pal.RED)
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(16))
+                setOnClickListener {
+                    handler.removeCallbacks(countdown)
+                    requestAdmin(this@ShutdownActivity, REQ_ADMIN_ONLY)
+                }
+            })
+        }
 
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(button("TIDAK", false) { finish() }, LinearLayout.LayoutParams(dp(170), dp(64)).apply { setMargins(dp(6), 0, dp(6), 0) })
-        row.addView(button("YA, MATIKAN", true) { confirm(true) }, LinearLayout.LayoutParams(dp(170), dp(64)).apply { setMargins(dp(6), 0, dp(6), 0) })
-        box.addView(row)
+        row.addView(button("TIDAK", false) { finish() }, LinearLayout.LayoutParams(0, dp(64), 1f).apply { setMargins(dp(6), 0, dp(6), 0) })
+        row.addView(button("YA, MATIKAN", true) { confirm(true) }, LinearLayout.LayoutParams(0, dp(64), 1f).apply { setMargins(dp(6), 0, dp(6), 0) })
+        box.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        root.addView(box, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        root.addView(box, FrameLayout.LayoutParams(col, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START).apply {
+            leftMargin = dp(14)
+            topMargin = dp(40)
+        })
         return root
     }
 
@@ -172,12 +192,22 @@ class ShutdownActivity : Activity() {
     @Deprecated("Dibutuhkan untuk Activity biasa")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQ_ADMIN && dpm.isAdminActive(admin)) lockAndFinish() else finish()
+        when {
+            requestCode == REQ_ADMIN && dpm.isAdminActive(admin) -> lockAndFinish()
+            requestCode == REQ_ADMIN_ONLY -> {
+                setContentView(buildUi())
+                remaining = COUNTDOWN_SEC
+                countText.text = remaining.toString()
+                handler.postDelayed(countdown, 1000L)
+            }
+            else -> finish()
+        }
     }
 
     companion object {
         private const val COUNTDOWN_SEC = 20
         private const val REQ_ADMIN = 7
+        private const val REQ_ADMIN_ONLY = 8
 
         fun show(ctx: Context) {
             val i = Intent(ctx, ShutdownActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

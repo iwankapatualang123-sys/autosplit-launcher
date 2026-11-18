@@ -70,6 +70,10 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("autocharge", true)
         set(v) = sp.edit().putBoolean("autocharge", v).apply()
 
+    var adminAsked: Boolean
+        get() = sp.getBoolean("adminasked", false)
+        set(v) = sp.edit().putBoolean("adminasked", v).apply()
+
     var askOnUnplug: Boolean
         get() = sp.getBoolean("askunplug", true)
         set(v) = sp.edit().putBoolean("askunplug", v).apply()

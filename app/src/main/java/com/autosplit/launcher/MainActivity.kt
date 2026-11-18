@@ -84,6 +84,40 @@ class MainActivity : Activity() {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQ_LOCATION)
         }
         handleIntent(intent)
+        handler.postDelayed({ askAdminOnce() }, 2500L)
+    }
+
+    /** Minta izin kunci layar sekali, supaya pop-up bisa mengunci otomatis saat timer habis. */
+    private fun askAdminOnce() {
+        if (!prefs.askOnUnplug || prefs.adminAsked || ShutdownActivity.isAdminActive(this) || isFinishing) return
+        prefs.adminAsked = true
+        AlertDialog.Builder(this, DIALOG)
+            .setTitle("Izinkan kunci layar")
+            .setMessage("Agar tablet terkunci otomatis saat charger dicabut dan timer habis, AutoSplit butuh izin kunci layar. Izin ini hanya untuk mengunci layar.")
+            .setPositiveButton("Izinkan") { _, _ -> ShutdownActivity.requestAdmin(this, REQ_ADMIN) }
+            .setNegativeButton("Nanti", null)
+            .showLeft()
+    }
+
+    private fun AlertDialog.Builder.showLeft(): AlertDialog {
+        val d = show()
+        place(d)
+        return d
+    }
+
+    /** Dialog ditaruh di kolom speedometer kiri atas, supaya tidak tertutup jendela Maps/YouTube. */
+    @Suppress("DEPRECATION")
+    private fun place(d: AlertDialog) {
+        val w = d.window ?: return
+        val real = Point()
+        windowManager.defaultDisplay.getRealSize(real)
+        val col = if (panelsActive && !isInMultiWindowMode) real.x * prefs.leftPercent / 100 else real.x * 45 / 100
+        w.setGravity(Gravity.TOP or Gravity.START)
+        val lp = w.attributes
+        lp.x = dp(14)
+        lp.y = dp(40)
+        lp.width = (col - dp(28)).coerceAtLeast(dp(300))
+        w.attributes = lp
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -533,7 +567,7 @@ class MainActivity : Activity() {
                 updateSlotButtons()
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .showLeft()
     }
 
     private fun drawer() {
@@ -548,7 +582,7 @@ class MainActivity : Activity() {
                 engine.launch(list[i].first, null, isInMultiWindowMode)
             }
             .setNegativeButton("Tutup", null)
-            .show()
+            .showLeft()
     }
 
     private fun onOff(b: Boolean) = if (b) "aktif" else "mati"
@@ -621,11 +655,11 @@ class MainActivity : Activity() {
             .setTitle("Pengaturan")
             .setItems(entries.map { it.first }.toTypedArray()) { _, which -> entries[which].second() }
             .setNegativeButton("Tutup", null)
-            .show()
+            .showLeft()
     }
 
     private fun askAccent() {
-        val names = ACCENT_NAMES + "Kustom (geser warna)"
+        val names = ACCENT_NAMES + "Roda warna (kustom)"
         AlertDialog.Builder(this, DIALOG)
             .setTitle("Warna aksen")
             .setItems(names) { _, which ->
@@ -637,43 +671,56 @@ class MainActivity : Activity() {
                 }
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .showLeft()
     }
 
     private fun askHue() {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(prefs.accent, hsv)
-        val preview = View(this)
-        val sb = SeekBar(this).apply {
-            max = 360
-            progress = hsv[0].toInt().coerceIn(0, 360)
+        val wheel = ColorWheelView(this).apply { setColor(prefs.accent) }
+        val bar = View(this)
+        fun paintBar(c: Int) {
+            bar.background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.BLACK, c, Color.WHITE)
+            ).apply { cornerRadius = dp(6).toFloat() }
         }
-        fun colorOf(hue: Int): Int = Color.HSVToColor(floatArrayOf(hue.toFloat(), 0.85f, 1f))
-        preview.setBackgroundColor(colorOf(sb.progress))
-        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        paintBar(prefs.accent)
+        wheel.onChange = { paintBar(it) }
+        val bright = SeekBar(this).apply {
+            max = 80
+            progress = ((wheel.brightness - 0.2f) * 100).toInt().coerceIn(0, 80)
+        }
+        bright.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                preview.setBackgroundColor(colorOf(p))
+                if (fromUser) wheel.brightness = 0.2f + p / 100f
             }
 
             override fun onStartTrackingTouch(s: SeekBar?) {}
 
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
+        val hint = TextView(this).apply {
+            text = "Kecerahan"
+            setTextColor(Pal.MUTED)
+            textSize = 12f
+        }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(16), dp(24), 0)
-            addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)))
-            addView(sb)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(20), dp(12), dp(20), 0)
+            addView(wheel)
+            addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(18)).apply { topMargin = dp(14) })
+            addView(hint, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+            addView(bright, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         AlertDialog.Builder(this, DIALOG)
-            .setTitle("Geser untuk memilih warna")
-            .setView(box)
+            .setTitle("Roda warna")
+            .setView(ScrollView(this).apply { addView(box) })
             .setPositiveButton("Simpan") { _, _ ->
-                prefs.accent = colorOf(sb.progress)
+                prefs.accent = wheel.color()
                 recreate()
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .showLeft()
     }
 
     private fun askRatio() {
@@ -711,7 +758,7 @@ class MainActivity : Activity() {
                 showSettings()
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .showLeft()
     }
 
     private fun systemInfo(): String = buildString {
@@ -767,6 +814,7 @@ class MainActivity : Activity() {
             live.stop()
         }
         dlg.show()
+        place(dlg)
         handler.post(loop)
     }
 
