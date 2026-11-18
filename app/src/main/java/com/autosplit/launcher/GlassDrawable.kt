@@ -62,8 +62,6 @@ class GlassDrawable(
         sweep = null
     }
 
-    private fun dim(c: Int): Int = Color.argb(90, Color.red(c), Color.green(c), Color.blue(c))
-
     override fun draw(c: Canvas) {
         c.drawRoundRect(rect, radius, radius, fill)
         if (Ambient.running) {
@@ -72,7 +70,7 @@ class GlassDrawable(
             val cy = rect.centerY()
             val sg = sweep?.takeIf { sweepKey == key } ?: SweepGradient(
                 cx, cy,
-                intArrayOf(Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent),
+                Ambient.loopColors(Pal.accent, Pal.accent2),
                 null
             ).also {
                 sweep = it

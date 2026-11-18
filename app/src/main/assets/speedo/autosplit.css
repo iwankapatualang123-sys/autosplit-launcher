@@ -61,9 +61,7 @@
   display: block; position: absolute; inset: 0; padding: 5px; border-radius: 18px; z-index: 30; pointer-events: none;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.12) 30%, rgba(255, 255, 255, 0.05)),
     conic-gradient(from var(--as-a, 0deg),
-    var(--theme-accent), var(--theme-accent-2) 16%, rgba(var(--theme-accent-2-rgb), 0.35) 33%,
-    var(--theme-accent) 50%, var(--theme-accent-2) 66%, rgba(var(--theme-accent-2-rgb), 0.35) 83%,
-    var(--theme-accent));
+    var(--theme-accent), var(--theme-accent-2) 50%, var(--theme-accent));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }

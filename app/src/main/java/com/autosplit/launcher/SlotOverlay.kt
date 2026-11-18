@@ -80,8 +80,6 @@ class SlotOverlay(ctx: Context) : View(ctx) {
         frameGloss.shader = g
     }
 
-    private fun dim(c: Int): Int = Color.argb(90, Color.red(c), Color.green(c), Color.blue(c))
-
     override fun onDraw(c: Canvas) {
         framePaint.color = Pal.accent
         text.color = Pal.accent
@@ -91,7 +89,7 @@ class SlotOverlay(ctx: Context) : View(ctx) {
         val radius = 20f * d
         val sg: SweepGradient? = if (Ambient.running) (sweep ?: SweepGradient(
                 width / 2f, height / 2f,
-                intArrayOf(Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent),
+                Ambient.loopColors(Pal.accent, Pal.accent2),
                 null
             ).also { sweep = it }) else null
         if (sg != null) {
