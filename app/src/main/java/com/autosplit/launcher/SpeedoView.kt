@@ -21,6 +21,9 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
     private var c1 = "#00E5FF"
     private var c2 = "#A855F7"
     private var eco = false
+    private var eq = "off"
+    private var frameRun = false
+    private val sb = StringBuilder(256)
 
     private var lastSpeed = -1
     private var lastG = Int.MIN_VALUE
@@ -44,12 +47,27 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
         loadUrl("file:///android_asset/speedo/index.html")
     }
 
-    fun configure(styleIndex: Int, color1: Int, color2: Int, ecoMode: Boolean) {
+    fun configure(styleIndex: Int, color1: Int, color2: Int, ecoMode: Boolean, eqMode: Int, frameRunning: Boolean) {
         style = STYLES[styleIndex.coerceIn(0, STYLES.size - 1)]
         c1 = hex(color1)
         c2 = hex(color2)
         eco = ecoMode
+        eq = EQ_MODES[eqMode.coerceIn(0, EQ_MODES.size - 1)]
+        frameRun = frameRunning
         applyAll()
+    }
+
+    /** Pita equalizer 0..1 dari EqHub (dipanggil di thread utama). */
+    fun setBands(bands: FloatArray) {
+        if (!ready || eq == "off") return
+        sb.setLength(0)
+        sb.append("ElioEq.setBands([")
+        for (i in bands.indices) {
+            if (i > 0) sb.append(',')
+            sb.append((bands[i] * 100f).roundToInt() / 100f)
+        }
+        sb.append("])")
+        evaluateJavascript(sb.toString(), null)
     }
 
     fun setSpeed(kmh: Float) {
@@ -75,7 +93,10 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
 
     private fun applyAll() {
         if (!ready) return
-        js("ElioSpeedo.setStyle('$style');ElioSpeedo.setGradient('$c1','$c2');ElioSpeedo.setEco($eco);")
+        js(
+            "ElioSpeedo.setStyle('$style');ElioSpeedo.setGradient('$c1','$c2');ElioSpeedo.setEco($eco);" +
+                "ElioEq.setMode('$eq');document.querySelector('.elio-speedo').classList.toggle('as-frame-run',$frameRun);"
+        )
         lastSpeed = -1
         lastG = Int.MIN_VALUE
         lastLive = ""
@@ -89,5 +110,6 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
 
     companion object {
         val STYLES = arrayOf("lfa", "m3", "mazda", "honda")
+        val EQ_MODES = arrayOf("off", "bars", "wave")
     }
 }

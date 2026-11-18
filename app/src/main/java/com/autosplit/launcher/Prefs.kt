@@ -35,6 +35,15 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("eco", false)
         set(v) = sp.edit().putBoolean("eco", v).apply()
 
+    /** 0 = mati, 1 = batang, 2 = gelombang. */
+    var eqMode: Int
+        get() = sp.getInt("eqmode", 0)
+        set(v) = sp.edit().putInt("eqmode", v).apply()
+
+    var frameRunning: Boolean
+        get() = sp.getBoolean("framerun", false)
+        set(v) = sp.edit().putBoolean("framerun", v).apply()
+
     var showTiles: Boolean
         get() = sp.getBoolean("tiles", false)
         set(v) = sp.edit().putBoolean("tiles", v).apply()

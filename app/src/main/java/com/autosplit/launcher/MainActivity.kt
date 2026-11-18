@@ -53,6 +53,8 @@ class MainActivity : Activity() {
     private lateinit var overlay: SlotOverlay
 
     private var gauge: SpeedoView? = null
+    private val eq = EqHub { gauge?.setBands(it) }
+    private var eqWarned = false
     private val tileValues = HashMap<String, TextView>()
     private val tileBoxes = HashMap<String, View>()
 
@@ -138,6 +140,7 @@ class MainActivity : Activity() {
         hub.start()
         link.start()
         gauge?.onResume()
+        applyEffects()
         syncChargeService()
         updateSlotButtons()
         applyInsets()
@@ -145,6 +148,7 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        eq.stop()
         gauge?.onPause()
         handler.removeCallbacks(poll)
         hub.stop()
@@ -164,6 +168,15 @@ class MainActivity : Activity() {
         if (requestCode == REQ_LOCATION) {
             hub.stop()
             hub.start()
+        }
+        if (requestCode == REQ_AUDIO) {
+            if (hasAudioPermission()) {
+                applyEffects()
+            } else {
+                prefs.eqMode = 0
+                setGauge()
+                toast("Equalizer butuh izin audio untuk membaca musik yang diputar")
+            }
         }
     }
 
@@ -354,7 +367,7 @@ class MainActivity : Activity() {
 
     private fun setGauge() {
         val g = gauge ?: SpeedoView(this)
-        g.configure(prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco)
+        g.configure(prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco, if (prefs.eco) 0 else prefs.eqMode, prefs.frameRunning && !prefs.eco)
         if (g.parent == null) holder.addView(g, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         gauge = g
         btnStyle.text = "GAYA: ${STYLE_NAMES[prefs.gaugeStyle.coerceIn(0, STYLE_NAMES.size - 1)]}"
@@ -564,6 +577,22 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun hasAudioPermission(): Boolean =
+        checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    /** Bingkai layar berjalan/diam dan equalizer, mengikuti pengaturan dan Mode Hemat. */
+    private fun applyEffects() {
+        overlay.running = prefs.frameRunning && !prefs.eco
+        if (prefs.eqMode > 0 && !prefs.eco && hasAudioPermission()) {
+            if (!eq.start() && !eqWarned) {
+                eqWarned = true
+                toast("Equalizer tidak didukung di perangkat ini")
+            }
+        } else {
+            eq.stop()
+        }
+    }
+
     private fun syncChargeService() {
         if (prefs.needsChargeService) ChargeService.start(this) else ChargeService.stop(this)
     }
@@ -643,6 +672,22 @@ class MainActivity : Activity() {
             "Mode Hemat (efek animasi dikurangi): ${onOff(prefs.eco)}" to {
                 prefs.eco = !prefs.eco
                 setGauge()
+                applyEffects()
+                showSettings()
+            },
+            "Equalizer musik: ${EQ_NAMES[prefs.eqMode.coerceIn(0, EQ_NAMES.size - 1)]}" to {
+                prefs.eqMode = (prefs.eqMode + 1) % EQ_NAMES.size
+                if (prefs.eqMode > 0 && !hasAudioPermission()) {
+                    requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
+                }
+                setGauge()
+                applyEffects()
+                showSettings()
+            },
+            "Bingkai layar & speedometer: ${if (prefs.frameRunning) "Berjalan (gradasi)" else "Diam"}" to {
+                prefs.frameRunning = !prefs.frameRunning
+                setGauge()
+                applyEffects()
                 showSettings()
             },
             "Tampilkan kotak sensor di bawah: ${onOff(prefs.showTiles)}" to {
@@ -872,6 +917,8 @@ class MainActivity : Activity() {
 
         private const val REQ_LOCATION = 100
         private const val REQ_ADMIN = 101
+        private const val REQ_AUDIO = 102
+        private val EQ_NAMES = arrayOf("Mati", "Batang", "Gelombang")
         private const val DIALOG = android.R.style.Theme_Material_Dialog_Alert
         private const val LOCK_MSG = "Dikunci saat mobil bergerak"
         private val STYLE_NAMES = arrayOf("LEXUS F-SPORT", "BMW M3", "MAZDA KODO", "HONDA TYPE R")
