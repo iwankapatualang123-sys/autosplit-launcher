@@ -102,7 +102,7 @@ class MainActivity : Activity() {
         super.onStart()
         hub.start()
         link.start()
-        if (prefs.autoOnCharge) ChargeService.start(this) else ChargeService.stop(this)
+        syncChargeService()
         updateSlotButtons()
         applyInsets()
         handler.post(poll)
@@ -496,6 +496,10 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun syncChargeService() {
+        if (prefs.needsChargeService) ChargeService.start(this) else ChargeService.stop(this)
+    }
+
     private fun openSettings(action: String) {
         try {
             startActivity(Intent(action))
@@ -580,13 +584,23 @@ class MainActivity : Activity() {
             },
             "Aktif otomatis saat dicas: ${onOff(prefs.autoOnCharge)}" to {
                 prefs.autoOnCharge = !prefs.autoOnCharge
-                if (prefs.autoOnCharge) ChargeService.start(this) else ChargeService.stop(this)
+                syncChargeService()
                 showSettings()
             },
             "Mulai panel otomatis saat dicas: ${onOff(prefs.autoStartPanels)}" to {
                 prefs.autoStartPanels = !prefs.autoStartPanels
                 showSettings()
             },
+            "Pop-up matikan unit saat charger dicabut: ${onOff(prefs.askOnUnplug)}" to {
+                prefs.askOnUnplug = !prefs.askOnUnplug
+                syncChargeService()
+                showSettings()
+            },
+            "Izin kunci layar: ${if (ShutdownActivity.isAdminActive(this)) "sudah aktif" else "belum aktif (ketuk)"}" to {
+                if (ShutdownActivity.isAdminActive(this)) toast("Izin kunci layar sudah aktif")
+                else ShutdownActivity.requestAdmin(this, REQ_ADMIN)
+            },
+            "Coba pop-up matikan unit" to { ShutdownActivity.show(this) },
             "Kecerahan otomatis (sensor cahaya): ${onOff(prefs.autoDim)}" to {
                 prefs.autoDim = !prefs.autoDim
                 showSettings()
@@ -760,6 +774,7 @@ class MainActivity : Activity() {
         const val EXTRA_CHARGE = "charge"
 
         private const val REQ_LOCATION = 100
+        private const val REQ_ADMIN = 101
         private const val DIALOG = android.R.style.Theme_Material_Dialog_Alert
         private const val LOCK_MSG = "Dikunci saat mobil bergerak"
         private val STYLE_NAMES = arrayOf("LEXUS", "BMW", "MAZDA", "HONDA")
