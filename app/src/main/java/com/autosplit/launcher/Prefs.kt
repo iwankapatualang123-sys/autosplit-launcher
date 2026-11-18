@@ -70,6 +70,13 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("autocharge", true)
         set(v) = sp.edit().putBoolean("autocharge", v).apply()
 
+    var askOnUnplug: Boolean
+        get() = sp.getBoolean("askunplug", true)
+        set(v) = sp.edit().putBoolean("askunplug", v).apply()
+
+    /** Layanan latar depan diperlukan untuk fitur colok maupun cabut charger. */
+    val needsChargeService: Boolean get() = autoOnCharge || askOnUnplug
+
     var autoStartPanels: Boolean
         get() = sp.getBoolean("autopanels", true)
         set(v) = sp.edit().putBoolean("autopanels", v).apply()

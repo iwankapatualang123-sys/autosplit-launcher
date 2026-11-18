@@ -6,7 +6,7 @@ import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED && Prefs(context).autoOnCharge) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED && Prefs(context).needsChargeService) {
             ChargeService.start(context, true)
         }
     }

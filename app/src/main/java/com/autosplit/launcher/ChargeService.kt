@@ -27,7 +27,10 @@ class ChargeService : Service() {
         super.onCreate()
         val r = object : BroadcastReceiver() {
             override fun onReceive(c: Context, i: Intent) {
-                if (i.action == Intent.ACTION_POWER_CONNECTED) openLauncher(c)
+                when (i.action) {
+                    Intent.ACTION_POWER_CONNECTED -> openLauncher(c)
+                    Intent.ACTION_POWER_DISCONNECTED -> if (Prefs(c).askOnUnplug) ShutdownActivity.show(c)
+                }
             }
         }
         val f = IntentFilter().apply {
@@ -91,7 +94,7 @@ class ChargeService : Service() {
         return builder
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle("AutoSplit aktif")
-            .setContentText("Launcher terbuka otomatis saat pengisi daya dicolok")
+            .setContentText("Memantau pengisi daya mobil")
             .setOngoing(true)
             .build()
     }
