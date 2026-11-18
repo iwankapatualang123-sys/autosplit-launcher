@@ -76,6 +76,10 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
         private set
     var gForce = 0f
         private set
+    var latG = 0f
+        private set
+    var longG = 0f
+        private set
     var pressureHpa = Float.NaN
         private set
     var lux = -1f
@@ -272,7 +276,7 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
                     val lx = e.values[0] - gravity[0]
                     val ly = e.values[1] - gravity[1]
                     val lz = e.values[2] - gravity[2]
-                    updateG(sqrt(lx * lx + ly * ly + lz * lz))
+                    updateG(lx, ly, lz)
                 }
                 if (!hasRotation && hasCompassFallback && hasMagSample) {
                     if (SensorManager.getRotationMatrix(rot, null, acc, mag)) applyHeading()
@@ -286,7 +290,7 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
                 val x = e.values[0]
                 val y = e.values[1]
                 val z = e.values[2]
-                updateG(sqrt(x * x + y * y + z * z))
+                updateG(x, y, z)
             }
             Sensor.TYPE_LIGHT -> {
                 val v = e.values[0]
@@ -297,9 +301,28 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
         }
     }
 
-    private fun updateG(ms2: Float) {
-        val g = ms2 / SensorManager.GRAVITY_EARTH
-        gForce = gForce * 0.85f + g * 0.15f
+    /**
+     * Gaya G dari percepatan linear (tanpa gravitasi) pada sumbu perangkat. Sumbu layar
+     * ditentukan dari rotasi tampilan. Tablet tegak di dasbor: maju = arah kamera belakang (-Z).
+     * Tablet datar: maju = atas layar.
+     */
+    @Suppress("DEPRECATION")
+    private fun updateG(x: Float, y: Float, z: Float) {
+        val g = SensorManager.GRAVITY_EARTH
+        gForce = gForce * 0.85f + (sqrt(x * x + y * y + z * z) / g) * 0.15f
+        val sx: Float
+        val sy: Float
+        when (wm.defaultDisplay.rotation) {
+            Surface.ROTATION_90 -> { sx = y; sy = -x }
+            Surface.ROTATION_180 -> { sx = -x; sy = -y }
+            Surface.ROTATION_270 -> { sx = -y; sy = x }
+            else -> { sx = x; sy = y }
+        }
+        val upright = abs(rot[8]) <= 0.75f
+        val lat = sx / g
+        val lon = (if (upright) -z else sy) / g
+        latG = latG * 0.8f + lat * 0.2f
+        longG = longG * 0.8f + lon * 0.2f
     }
 
     /**

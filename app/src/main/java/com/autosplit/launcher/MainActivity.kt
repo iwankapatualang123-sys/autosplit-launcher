@@ -5,7 +5,9 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.graphics.Point
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.hardware.SensorManager
 import android.os.Build
@@ -34,6 +36,7 @@ class MainActivity : Activity() {
 
     private lateinit var prefs: Prefs
     private lateinit var hub: SensorHub
+    private lateinit var link: LinkHub
     private lateinit var engine: PanelEngine
 
     private val handler = Handler(Looper.getMainLooper())
@@ -42,7 +45,7 @@ class MainActivity : Activity() {
     private lateinit var holder: FrameLayout
     private lateinit var gpsText: TextView
     private lateinit var ramText: TextView
-    private lateinit var batText: TextView
+    private lateinit var indicator: StatusIndicator
     private lateinit var btnA: TextView
     private lateinit var btnB: TextView
     private lateinit var btnStyle: TextView
@@ -71,18 +74,35 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
+        Pal.accent = prefs.accent
         hub = SensorHub(this)
+        link = LinkHub(this)
         engine = PanelEngine(this, prefs)
         if (prefs.keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         buildUi()
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQ_LOCATION)
         }
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(i: Intent?) {
+        if (i?.getBooleanExtra(EXTRA_CHARGE, false) == true && prefs.autoStartPanels) {
+            handler.postDelayed({ startPanels() }, 1500L)
+        }
     }
 
     override fun onStart() {
         super.onStart()
         hub.start()
+        link.start()
+        if (prefs.autoOnCharge) ChargeService.start(this) else ChargeService.stop(this)
         updateSlotButtons()
         applyInsets()
         handler.post(poll)
@@ -91,6 +111,7 @@ class MainActivity : Activity() {
     override fun onStop() {
         handler.removeCallbacks(poll)
         hub.stop()
+        link.stop()
         super.onStop()
     }
 
@@ -107,11 +128,27 @@ class MainActivity : Activity() {
         // Launcher: tombol kembali tidak menutup layar utama.
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) immersive()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun immersive() {
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    }
+
     // ---------- UI ----------
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
-    private fun glass(accent: Boolean = false) = GlassDrawable(resources.displayMetrics.density, 12f, accent)
+    private fun glass(accent: Boolean = false) = GlassDrawable(resources.displayMetrics.density, 4f, accent)
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
@@ -133,16 +170,16 @@ class MainActivity : Activity() {
             format24Hour = "HH:mm"
             format12Hour = "HH:mm"
             textSize = 20f
-            setTextColor(Pal.CYAN)
+            setTextColor(Pal.accent)
             typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
         }
         gpsText = statusText(Gravity.CENTER)
         ramText = statusText(Gravity.CENTER)
-        batText = statusText(Gravity.END)
+        indicator = StatusIndicator(this)
         status.addView(clock, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        status.addView(gpsText, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.6f))
+        status.addView(gpsText, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.5f))
         status.addView(ramText, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.8f))
-        status.addView(batText, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        status.addView(indicator, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         holder = FrameLayout(this).apply {
             background = glass()
@@ -153,7 +190,7 @@ class MainActivity : Activity() {
         addTile(grid, T_HEAD, "ARAH")
         addTile(grid, T_ALT, "KETINGGIAN")
         addTile(grid, T_G, "GAYA G")
-        addTile(grid, T_BAT, "BATERAI")
+        addTile(grid, T_BAT, "SUHU BATERAI")
         addTile(grid, T_TRIP, "JARAK TRIP")
         addTile(grid, T_MAX, "KEC. MAKS")
         addTile(grid, T_AVG, "RATA-RATA")
@@ -194,7 +231,6 @@ class MainActivity : Activity() {
         root.addView(holder, LinearLayout.LayoutParams(full, 0, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
         root.addView(grid, LinearLayout.LayoutParams(full, wrap))
         root.addView(dock, LinearLayout.LayoutParams(full, wrap))
-        root.setPadding(dp(8), dp(6), dp(8), dp(6))
         overlay = SlotOverlay(this)
         val frame = FrameLayout(this)
         frame.addView(root, FrameLayout.LayoutParams(full, full))
@@ -217,7 +253,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             background = glass()
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
         }
         val l = TextView(this).apply {
             text = label
@@ -251,13 +287,13 @@ class MainActivity : Activity() {
     private fun chip(label: String, accent: Boolean = false, onClick: () -> Unit): TextView =
         TextView(this).apply {
             text = label
-            setTextColor(if (accent) Pal.CYAN else Pal.TEXT)
+            setTextColor(if (accent) Pal.accent else Pal.TEXT)
             textSize = 14f
             gravity = Gravity.CENTER
             maxLines = 1
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             minHeight = dp(52)
-            setPadding(dp(16), 0, dp(16), 0)
+            setPadding(dp(18), 0, dp(18), 0)
             background = glass(accent)
             setOnClickListener { onClick() }
         }
@@ -271,19 +307,20 @@ class MainActivity : Activity() {
     private fun setGauge() {
         holder.removeAllViews()
         val g: GaugeView = when (prefs.gaugeStyle) {
-            1 -> HondaGaugeView(this)
-            2 -> LexusGaugeView(this)
-            else -> BmwGaugeView(this)
+            1 -> BmwLadderView(this)
+            2 -> RingGaugeView(this, true)
+            3 -> HondaGaugeView(this)
+            else -> RingGaugeView(this, false)
         }
         g.maxSpeed = if (prefs.useMph) 160f else 240f
         g.unit = if (prefs.useMph) "mph" else "km/h"
         holder.addView(g, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         gauge = g
-        btnStyle.text = "GAYA: ${STYLE_NAMES[prefs.gaugeStyle.coerceIn(0, 2)]}"
+        btnStyle.text = "GAYA: ${STYLE_NAMES[prefs.gaugeStyle.coerceIn(0, STYLE_NAMES.size - 1)]}"
     }
 
     private fun cycleStyle() {
-        prefs.gaugeStyle = (prefs.gaugeStyle + 1) % 3
+        prefs.gaugeStyle = (prefs.gaugeStyle + 1) % STYLE_NAMES.size
         setGauge()
     }
 
@@ -293,43 +330,39 @@ class MainActivity : Activity() {
         btnB.text = "B: ${engine.labelOf(prefs.panelB)}"
     }
 
+    /**
+     * Saat jendela aplikasi aktif, kolom speedometer disejajarkan dengan jendela: tepi atas dan
+     * bawah kartu sama persis dengan tepi jendela, sehingga garis putih keduanya bersambung.
+     */
     @Suppress("DEPRECATION")
     private fun applyInsets() {
         val real = Point()
         windowManager.defaultDisplay.getRealSize(real)
         val reserve = panelsActive && !isInMultiWindowMode
-        val right = if (reserve) real.x * (100 - prefs.leftPercent) / 100 else 0
-        root.setPadding(dp(8), dp(6), dp(8) + right, dp(6))
-        updateOverlay()
+        if (reserve) {
+            val right = real.x * (100 - prefs.leftPercent) / 100
+            val top = dp(14) + dp(SlotOverlay.STRIP_DP.toInt()) - dp(3)
+            val bottom = dp(14) + dp(SlotOverlay.PAD_DP.toInt()) - dp(3)
+            root.setPadding(dp(11), top, right, bottom)
+        } else {
+            root.setPadding(dp(8), dp(6), dp(8), dp(6))
+        }
+        updateOverlay(reserve)
     }
 
-    private fun updateOverlay() {
-        if (!(panelsActive && !isInMultiWindowMode)) {
+    private fun updateOverlay(show: Boolean) {
+        if (!show) {
             overlay.setSlots(emptyList())
             return
         }
+        val top = dp(14) + dp(SlotOverlay.STRIP_DP.toInt())
         val list = ArrayList<SlotOverlay.Slot>()
-        list.add(SlotOverlay.Slot(engine.boundsA(), "A  " + engine.labelOf(prefs.panelA).uppercase()))
+        list.add(SlotOverlay.Slot(Rect(dp(14), top, dp(14), top), "SPEEDOMETER", false))
+        list.add(SlotOverlay.Slot(engine.boundsA(), "A  " + engine.labelOf(prefs.panelA).uppercase(Locale.US)))
         if (prefs.panelCount >= 3) {
-            list.add(SlotOverlay.Slot(engine.boundsB(), "B  " + engine.labelOf(prefs.panelB).uppercase()))
+            list.add(SlotOverlay.Slot(engine.boundsB(), "B  " + engine.labelOf(prefs.panelB).uppercase(Locale.US)))
         }
         overlay.setSlots(list)
-    }
-
-    @Suppress("DEPRECATION")
-    private fun immersive() {
-        window.decorView.systemUiVisibility =
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) immersive()
     }
 
     // ---------- Pembaruan data ----------
@@ -346,15 +379,16 @@ class MainActivity : Activity() {
         val k = if (mph) 2.23694f else 3.6f
         val unitName = if (mph) "mph" else "km/j"
         gauge?.setSpeed(hub.currentSpeedMps() * k)
+        gauge?.setG(hub.latG, hub.longG)
 
         tick++
         if (tick % 8 == 1) {
             hub.readBattery()
+            link.poll()
             applyInsets()
             ramText.text = "RAM ${hub.ramFreeMb()} MB"
-            val bt = if (hub.batteryTempC.isNaN()) "" else f(" %.0f°C", hub.batteryTempC)
-            batText.text = if (hub.batteryPct >= 0) "${hub.batteryPct}%$bt${if (hub.charging) " CAS" else ""}" else ""
         }
+        indicator.set(link.cellLevel, link.wifiLevel, hub.batteryPct, hub.charging, tick)
         gpsText.text = hub.gpsStatus()
 
         val h = if (!hub.headingDeg.isNaN()) hub.headingDeg else hub.gpsBearing
@@ -373,7 +407,7 @@ class MainActivity : Activity() {
         }
 
         tileValues[T_G]?.text = if (hub.hasLinear || hub.hasAccel) f("%.2f G", hub.gForce) else "—"
-        tileValues[T_BAT]?.text = if (hub.batteryPct >= 0) "${hub.batteryPct}%" else "—"
+        tileValues[T_BAT]?.text = if (hub.batteryTempC.isNaN()) "—" else f("%.0f°C", hub.batteryTempC)
 
         val dist = hub.tripMeters / 1000.0 * (if (mph) 0.621371 else 1.0)
         tileValues[T_TRIP]?.text = f("%.1f %s", dist, if (mph) "mi" else "km")
@@ -515,58 +549,116 @@ class MainActivity : Activity() {
 
     private fun onOff(b: Boolean) = if (b) "aktif" else "mati"
 
+    private fun accentName(): String {
+        val i = ACCENT_COLORS.indexOf(prefs.accent)
+        return if (i >= 0) ACCENT_NAMES[i] else "Kustom"
+    }
+
     private fun showSettings() {
         if (moving()) {
             toast(LOCK_MSG)
             return
         }
-        val items = arrayOf(
-            "Satuan: ${if (prefs.useMph) "mph" else "km/jam"}",
-            "Lebar panel speedometer: ${prefs.leftPercent}%",
-            "Jumlah jendela: ${prefs.panelCount} (speedometer + ${prefs.panelCount - 1} aplikasi)",
-            "Susunan: ${if (prefs.entertainmentLayout) "Hiburan (video besar)" else "Navigasi (peta besar)"}",
-            "Kecerahan otomatis (sensor cahaya): ${onOff(prefs.autoDim)}",
-            "Layar tetap menyala: ${onOff(prefs.keepScreenOn)}",
-            "Paksa mode freeform (percobaan): ${onOff(prefs.forceFreeform)}",
-            "Jadikan launcher utama"
+        val entries = listOf<Pair<String, () -> Unit>>(
+            "Satuan: ${if (prefs.useMph) "mph" else "km/jam"}" to {
+                prefs.useMph = !prefs.useMph
+                setGauge()
+                showSettings()
+            },
+            "Warna aksen: ${accentName()}" to { askAccent() },
+            "Lebar panel speedometer: ${prefs.leftPercent}%" to { askRatio() },
+            "Jumlah jendela: ${prefs.panelCount} (speedometer + ${prefs.panelCount - 1} aplikasi)" to {
+                prefs.panelCount = if (prefs.panelCount >= 3) 2 else 3
+                updateSlotButtons()
+                applyInsets()
+                showSettings()
+            },
+            "Susunan: ${if (prefs.entertainmentLayout) "Hiburan (video besar)" else "Navigasi (peta besar)"}" to {
+                prefs.entertainmentLayout = !prefs.entertainmentLayout
+                applyInsets()
+                showSettings()
+            },
+            "Aktif otomatis saat dicas: ${onOff(prefs.autoOnCharge)}" to {
+                prefs.autoOnCharge = !prefs.autoOnCharge
+                if (prefs.autoOnCharge) ChargeService.start(this) else ChargeService.stop(this)
+                showSettings()
+            },
+            "Mulai panel otomatis saat dicas: ${onOff(prefs.autoStartPanels)}" to {
+                prefs.autoStartPanels = !prefs.autoStartPanels
+                showSettings()
+            },
+            "Kecerahan otomatis (sensor cahaya): ${onOff(prefs.autoDim)}" to {
+                prefs.autoDim = !prefs.autoDim
+                showSettings()
+            },
+            "Layar tetap menyala: ${onOff(prefs.keepScreenOn)}" to {
+                prefs.keepScreenOn = !prefs.keepScreenOn
+                if (prefs.keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                showSettings()
+            },
+            "Paksa mode freeform (percobaan): ${onOff(prefs.forceFreeform)}" to {
+                prefs.forceFreeform = !prefs.forceFreeform
+                showSettings()
+            },
+            "Jadikan launcher utama" to { openSettings(Settings.ACTION_HOME_SETTINGS) }
         )
         AlertDialog.Builder(this, DIALOG)
             .setTitle("Pengaturan")
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> {
-                        prefs.useMph = !prefs.useMph
-                        setGauge()
-                        showSettings()
-                    }
-                    1 -> askRatio()
-                    2 -> {
-                        prefs.panelCount = if (prefs.panelCount >= 3) 2 else 3
-                        updateSlotButtons()
-                        showSettings()
-                    }
-                    3 -> {
-                        prefs.entertainmentLayout = !prefs.entertainmentLayout
-                        showSettings()
-                    }
-                    4 -> {
-                        prefs.autoDim = !prefs.autoDim
-                        showSettings()
-                    }
-                    5 -> {
-                        prefs.keepScreenOn = !prefs.keepScreenOn
-                        if (prefs.keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        showSettings()
-                    }
-                    6 -> {
-                        prefs.forceFreeform = !prefs.forceFreeform
-                        showSettings()
-                    }
-                    7 -> openSettings(Settings.ACTION_HOME_SETTINGS)
+            .setItems(entries.map { it.first }.toTypedArray()) { _, which -> entries[which].second() }
+            .setNegativeButton("Tutup", null)
+            .show()
+    }
+
+    private fun askAccent() {
+        val names = ACCENT_NAMES + "Kustom (geser warna)"
+        AlertDialog.Builder(this, DIALOG)
+            .setTitle("Warna aksen")
+            .setItems(names) { _, which ->
+                if (which < ACCENT_COLORS.size) {
+                    prefs.accent = ACCENT_COLORS[which]
+                    recreate()
+                } else {
+                    askHue()
                 }
             }
-            .setNegativeButton("Tutup", null)
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun askHue() {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(prefs.accent, hsv)
+        val preview = View(this)
+        val sb = SeekBar(this).apply {
+            max = 360
+            progress = hsv[0].toInt().coerceIn(0, 360)
+        }
+        fun colorOf(hue: Int): Int = Color.HSVToColor(floatArrayOf(hue.toFloat(), 0.85f, 1f))
+        preview.setBackgroundColor(colorOf(sb.progress))
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                preview.setBackgroundColor(colorOf(p))
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(16), dp(24), 0)
+            addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)))
+            addView(sb)
+        }
+        AlertDialog.Builder(this, DIALOG)
+            .setTitle("Geser untuk memilih warna")
+            .setView(box)
+            .setPositiveButton("Simpan") { _, _ ->
+                prefs.accent = colorOf(sb.progress)
+                recreate()
+            }
+            .setNegativeButton("Batal", null)
             .show()
     }
 
@@ -616,6 +708,8 @@ class MainActivity : Activity() {
         append("Fitur freeform sistem: ${if (engine.systemHasFreeform()) "ada" else "tidak ada"}\n")
         append("Paksa freeform: ${onOff(prefs.forceFreeform)}\n")
         append("GPS: ${hub.gpsStatus()}\n")
+        append("Sinyal seluler: ${if (link.cellLevel < 0) "tidak terbaca" else "${link.cellLevel} dari 4"}\n")
+        append("Sinyal Wi-Fi: ${if (link.wifiLevel < 0) "tidak terhubung" else "${link.wifiLevel} dari 4"}\n")
         val compass = when {
             hub.hasRotation -> "rotation vector"
             hub.hasCompassFallback -> "akselerometer + magnetometer"
@@ -663,10 +757,18 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        const val EXTRA_CHARGE = "charge"
+
         private const val REQ_LOCATION = 100
         private const val DIALOG = android.R.style.Theme_Material_Dialog_Alert
         private const val LOCK_MSG = "Dikunci saat mobil bergerak"
-        private val STYLE_NAMES = arrayOf("BMW", "HONDA", "TOYOTA/LEXUS")
+        private val STYLE_NAMES = arrayOf("LEXUS", "BMW", "MAZDA", "HONDA")
+        private val ACCENT_NAMES = arrayOf("Cyan", "Biru", "Hijau", "Oranye", "Merah", "Ungu", "Putih")
+        private val ACCENT_COLORS = intArrayOf(
+            Color.parseColor("#00E5FF"), Color.parseColor("#2F86FF"), Color.parseColor("#33FF99"),
+            Color.parseColor("#FF8A1F"), Color.parseColor("#FF3B4A"), Color.parseColor("#B26BFF"),
+            Color.parseColor("#E8F1FA")
+        )
 
         private const val T_HEAD = "head"
         private const val T_ALT = "alt"

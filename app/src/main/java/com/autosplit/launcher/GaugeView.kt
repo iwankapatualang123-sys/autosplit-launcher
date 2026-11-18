@@ -3,17 +3,20 @@ package com.autosplit.launcher
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.view.View
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Dasar semua speedometer. Bagian statis (cincin, tick, angka) digambar sekali ke bitmap;
- * tiap frame hanya bagian dinamis (jarum, busur, angka digital). Animasi dibatasi ~30 fps
+ * tiap frame hanya bagian dinamis (jarum, bar, angka digital). Animasi dibatasi ~30 fps
  * dan berhenti total saat kecepatan stabil, jadi hampir tidak membebani CPU.
  */
 abstract class GaugeView(ctx: Context) : View(ctx) {
@@ -30,6 +33,11 @@ abstract class GaugeView(ctx: Context) : View(ctx) {
             rebuildStatic()
         }
 
+    var latG = 0f
+        private set
+    var longG = 0f
+        private set
+
     protected var shown = 0f
     private var target = 0f
     private var animating = false
@@ -38,9 +46,14 @@ abstract class GaugeView(ctx: Context) : View(ctx) {
     protected var cy = 0f
     protected var r = 0f
 
+    /** Satu persen dari sisi terpendek tampilan, dalam piksel. */
+    protected var u = 1f
+
     private var cache: Bitmap? = null
     private val cachePaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val arcRect = RectF()
+
+    protected val gMag: Float get() = sqrt(latG * latG + longG * longG)
 
     private val stepper = object : Runnable {
         override fun run() {
@@ -56,6 +69,14 @@ abstract class GaugeView(ctx: Context) : View(ctx) {
         if (!animating && shown != target) {
             animating = true
             postDelayed(stepper, FRAME_MS)
+        }
+    }
+
+    fun setG(lat: Float, lon: Float) {
+        if (abs(lat - latG) > 0.01f || abs(lon - longG) > 0.01f) {
+            latG = lat
+            longG = lon
+            invalidate()
         }
     }
 
@@ -78,6 +99,7 @@ abstract class GaugeView(ctx: Context) : View(ctx) {
         cx = w / 2f
         cy = h / 2f
         r = min(w, h) / 2f * 0.95f
+        u = min(w, h) / 100f
         onGeometry()
         rebuildStatic()
     }
@@ -120,6 +142,27 @@ abstract class GaugeView(ctx: Context) : View(ctx) {
     protected fun drawCentered(c: Canvas, text: String, x: Float, y: Float, p: Paint) {
         c.drawText(text, x, y - (p.descent() + p.ascent()) / 2f, p)
     }
+
+    /** Empat sudut siku (bracket) ala HUD di sekeliling kotak. */
+    protected fun brackets(c: Canvas, l: Float, t: Float, rr: Float, b: Float, len: Float, p: Paint) {
+        c.drawLine(l, t, l + len, t, p)
+        c.drawLine(l, t, l, t + len, p)
+        c.drawLine(rr, t, rr - len, t, p)
+        c.drawLine(rr, t, rr, t + len, p)
+        c.drawLine(l, b, l + len, b, p)
+        c.drawLine(l, b, l, b - len, p)
+        c.drawLine(rr, b, rr - len, b, p)
+        c.drawLine(rr, b, rr, b - len, p)
+    }
+
+    protected fun withAlpha(color: Int, a: Int): Int =
+        Color.argb(a, Color.red(color), Color.green(color), Color.blue(color))
+
+    protected fun italicDigits(): Paint =
+        paint(Color.WHITE, Paint.Style.FILL).apply {
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD_ITALIC)
+        }
 
     protected fun paint(color: Int, style: Paint.Style, width: Float = 0f): Paint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {

@@ -24,7 +24,12 @@ jobs:
           gradle-version: 8.9
 
       - name: Build debug dan release
-        run: gradle --no-daemon assembleDebug assembleRelease
+        run: |
+          set -o pipefail
+          gradle --no-daemon assembleDebug assembleRelease 2>&1 | tee build.log || {
+            grep -E "^e: |error:|What went wrong" -A2 build.log | head -9 | while IFS= read -r line; do echo "::error::${line}"; done
+            exit 1
+          }
 
       - uses: actions/upload-artifact@v4
         with:

@@ -5,13 +5,13 @@ import android.graphics.Color
 import android.os.Build
 
 object Pal {
+    /** Warna aksen yang dipilih pengguna; diisi dari Prefs saat aplikasi dibuka. */
+    var accent: Int = Color.parseColor("#00E5FF")
+
     val BG = Color.parseColor("#05070D")
-    val SURFACE = Color.parseColor("#0B111A")
-    val CYAN = Color.parseColor("#00E5FF")
-    val CYAN_DIM = Color.parseColor("#2A6F7A")
+    val CYAN: Int get() = accent
     val TEXT = Color.parseColor("#E8F1FA")
-    val MUTED = Color.parseColor("#7C8DA0")
-    val WARN = Color.parseColor("#FFB020")
+    val MUTED = Color.parseColor("#8A9BAE")
     val RED = Color.parseColor("#FF3B4A")
 }
 
@@ -21,6 +21,10 @@ class Prefs(ctx: Context) {
     var gaugeStyle: Int
         get() = sp.getInt("style", 0)
         set(v) = sp.edit().putInt("style", v).apply()
+
+    var accent: Int
+        get() = sp.getInt("accent", Color.parseColor("#00E5FF"))
+        set(v) = sp.edit().putInt("accent", v).apply()
 
     var useMph: Boolean
         get() = sp.getBoolean("mph", false)
@@ -61,6 +65,14 @@ class Prefs(ctx: Context) {
     var forceFreeform: Boolean
         get() = sp.getBoolean("forcefree", Build.MANUFACTURER.equals("samsung", ignoreCase = true))
         set(v) = sp.edit().putBoolean("forcefree", v).apply()
+
+    var autoOnCharge: Boolean
+        get() = sp.getBoolean("autocharge", true)
+        set(v) = sp.edit().putBoolean("autocharge", v).apply()
+
+    var autoStartPanels: Boolean
+        get() = sp.getBoolean("autopanels", true)
+        set(v) = sp.edit().putBoolean("autopanels", v).apply()
 
     companion object {
         const val DEFAULT_A = "com.google.android.apps.maps"
