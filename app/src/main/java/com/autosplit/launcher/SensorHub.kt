@@ -144,6 +144,11 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
                 lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, this, Looper.getMainLooper())
             } catch (e: Exception) {
             }
+            // Ikut menerima posisi yang sudah didapat aplikasi lain (mis. Google Maps) tanpa biaya baterai.
+            try {
+                lm.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 1000L, 0f, this, Looper.getMainLooper())
+            } catch (e: Exception) {
+            }
             try {
                 lm.registerGnssStatusCallback(gnss, main)
             } catch (e: Exception) {
@@ -210,13 +215,19 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
         }
         if (!enabled) return "GPS mati, nyalakan di pengaturan lokasi"
         val age = SystemClock.elapsedRealtime() - lastFixElapsed
-        if (lastFixElapsed == 0L || age > 4000L) return "Mencari satelit (${satsUsed}/${satsVisible})"
+        if (lastFixElapsed == 0L || age > 4000L) {
+            return if (satsVisible == 0) "Mencari satelit: belum ada sinyal, butuh langit terbuka"
+            else "Mencari satelit (${satsUsed} dipakai dari ${satsVisible} terlihat)"
+        }
         val acc = if (accuracyM >= 0f) "±${accuracyM.toInt()} m · " else ""
         return "GPS $acc${satsUsed}/${satsVisible} satelit"
     }
 
     override fun onLocationChanged(loc: Location) {
+        // Posisi dari jaringan (Wi-Fi/seluler) terlalu kasar untuk kecepatan; hanya GPS atau fused yang akurat.
+        if (loc.provider != LocationManager.GPS_PROVIDER && (!loc.hasAccuracy() || loc.accuracy > 25f)) return
         val prev = lastLoc
+        if (prev != null && loc.time <= prev.time) return
         accuracyM = if (loc.hasAccuracy()) loc.accuracy else -1f
         altitudeM = if (loc.hasAltitude()) loc.altitude else Double.NaN
 
