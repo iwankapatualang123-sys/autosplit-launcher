@@ -33,3 +33,21 @@
   stroke-linejoin: round;
 }
 .elio-speedo.eco-mode .elio-wing { filter: none; }
+
+/* Efek warna kecepatan di area tengah: naik dari bawah sesuai kecepatan (diatur autosplit.js). */
+.elio-speedo .as-speed-fill {
+  position: absolute; left: 27%; right: 27%; bottom: 0;
+  height: calc(var(--as-speed, 0) * 100%);
+  background: linear-gradient(to top,
+    rgba(var(--theme-accent-rgb), 0.55) 0%,
+    rgba(var(--theme-accent-2-rgb), 0.32) 70%,
+    rgba(var(--theme-accent-2-rgb), 0.08) 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  transition: height 0.35s ease-out;
+}
+.elio-speedo .as-speed-fill::before {
+  content: ''; position: absolute; left: 8%; right: 8%; top: 0; height: 4px; border-radius: 4px;
+  background: rgb(var(--theme-accent-2-rgb));
+  box-shadow: 0 0 16px rgba(var(--theme-accent-2-rgb), 0.9), 0 0 4px #fff;
+}

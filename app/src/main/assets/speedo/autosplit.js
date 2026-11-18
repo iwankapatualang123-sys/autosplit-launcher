@@ -45,15 +45,51 @@
     return false;
   }
 
+  var PAD = 6;
+
+  /* Batas kiri/kanan bagian dalam bingkai kotak pada rentang tinggi [y0, y1]. */
+  function interior(bg, pts, y0, y1) {
+    if (bg.tagName === 'rect') {
+      var x = num(bg.getAttribute('x')), w = num(bg.getAttribute('width'));
+      return [x + PAD, x + w - PAD];
+    }
+    var L = -1e9, R = 1e9;
+    [y0, (y0 + y1) / 2, y1].forEach(function (y) {
+      var xs = [];
+      for (var i = 0; i < pts.length; i++) {
+        var p = pts[i], q = pts[(i + 1) % pts.length];
+        if ((p[1] <= y && q[1] >= y) || (q[1] <= y && p[1] >= y)) {
+          xs.push(p[1] === q[1] ? Math.min(p[0], q[0]) : p[0] + (q[0] - p[0]) * (y - p[1]) / (q[1] - p[1]));
+          if (p[1] === q[1]) xs.push(Math.max(p[0], q[0]));
+        }
+      }
+      if (xs.length) {
+        L = Math.max(L, Math.min.apply(null, xs) + PAD);
+        R = Math.min(R, Math.max.apply(null, xs) - PAD);
+      }
+    });
+    return [L, R];
+  }
+
+  function isDivider(c) {
+    return c.tagName === 'line' && /0\.08\)/.test(c.getAttribute('stroke') || '');
+  }
+
+  /* Kotak sensor: dipanjangkan bila area tinggi (fy > 1), lalu setiap tulisan dan garis pemisah
+     dipastikan berada di dalam bingkai (digeser/diperkecil bila perlu). Dekorasi tinggi direntangkan. */
   function stretchWing(g, gt, H) {
     var bg = g.querySelector('.elio-wing');
     var bb = bg.getBBox();
     var newH = H - gt[1] - 6;
-    var fy = newH / bb.height;
-    if (fy <= 1.01) return;
-    if (bg.tagName === 'rect') touch(bg, 'height', newH.toFixed(1));
-    else touch(bg, 'points', scalePoints(orig(bg, 'points'), fy));
-    var innerR = bb.x + bb.width - 6;
+    var fy = Math.max(1, newH / bb.height);
+    var pts = null;
+    if (bg.tagName === 'rect') {
+      if (fy > 1.01) touch(bg, 'height', newH.toFixed(1));
+    } else {
+      var sp = scalePoints(orig(bg, 'points'), fy);
+      if (fy > 1.01) touch(bg, 'points', sp);
+      pts = sp.split(/\s+/).map(function (pt) { var xy = pt.split(','); return [num(xy[0]), num(xy[1])]; });
+    }
     Array.prototype.forEach.call(g.children, function (c) {
       if (c === bg) return;
       var cb = c.getBBox();
@@ -61,16 +97,34 @@
       var ct = tr(ot);
       var x = cb.x + ct[0], y = cb.y + ct[1];
       if (y < 2 && cb.height < 3) return; // garis aksen atas tetap di atas
+      if ((c.tagName === 'path' || c.tagName === 'line') && cb.height > 150) {
+        if (fy > 1.01) touch(c, 'transform', ('scale(1 ' + fy.toFixed(3) + ') ' + (ot || '')).trim());
+        return;
+      }
       var dy = (y + cb.height / 2) * (fy - 1);
+      var fit = c.tagName === 'text' || c.tagName === 'g' || isDivider(c);
       var tf = 'translate(0 ' + dy.toFixed(1) + ')';
-      if ((c.tagName === 'text' || c.tagName === 'g') && cb.width > 0) {
-        var t = Math.min(TEXT_MAX, fy, (innerR - x) / cb.width);
-        if (t > 1.01) {
-          var ax = x, ay = y + cb.height;
+      if (fit && cb.width > 0) {
+        var t = (c.tagName === 'text' || c.tagName === 'g') ? Math.min(TEXT_MAX, fy) : 1;
+        var bottom = y + cb.height + dy;
+        var lr = interior(bg, pts || [], bottom - cb.height * t, bottom);
+        var shift = Math.max(0, lr[0] - x);
+        t = Math.min(t, (lr[1] - x - shift) / cb.width);
+        var ax = x, ay = y + cb.height;
+        tf = 'translate(' + shift.toFixed(1) + ' ' + dy.toFixed(1) + ')';
+        if (Math.abs(t - 1) > 0.01) {
           tf += ' translate(' + ax + ' ' + ay + ') scale(' + t.toFixed(3) + ') translate(' + (-ax) + ' ' + (-ay) + ')';
         }
       }
-      touch(c, 'transform', (tf + ' ' + (ot || '')).trim());
+      if (tf !== 'translate(0 0.0)') touch(c, 'transform', (tf + ' ' + (ot || '')).trim());
+    });
+  }
+
+  function fitWings(kids, H) {
+    kids.forEach(function (e) {
+      if (e.tagName !== 'g' || !e.querySelector('.elio-wing')) return;
+      var b = e.getBBox();
+      if (b.width <= 125 && b.height > 250) stretchWing(e, tr(orig(e, 'transform')), H);
     });
   }
 
@@ -80,7 +134,7 @@
       var ot = orig(e, 'transform'), t = tr(ot), b = e.getBBox();
       var by = b.y + t[1];
       if (e.tagName === 'g' && e.querySelector('.elio-wing') && b.width <= 125 && b.height > 250) {
-        stretchWing(e, t, H);
+        return;
       } else if (e.tagName === 'g' && hasBigCircle(e)) {
         dial = e;
       } else if (e.tagName === 'line' && e.getAttribute('stroke-dasharray')) {
@@ -132,6 +186,23 @@
     });
   }
 
+  /* Angka kecepatan besar (HTML) diperkecil agar 3 digit + satuan muat di dalam bingkai tengah. */
+  function fitReadout(box, svg, w, h) {
+    var el = box.querySelector('#hondaSpeedDisplay, #speedDisplay');
+    if (!el) return;
+    var avail;
+    if (box.id === 'cluster_m3') {
+      avail = 170 * (w / BW);
+    } else {
+      var vb = svg.viewBox.baseVal;
+      avail = 160 * Math.min(w / vb.width, h / vb.height);
+    }
+    var unitW = 44;
+    var px = (0.9 * avail - unitW) / (3 * 0.62);
+    px = Math.max(28, Math.min(px, 0.16 * window.innerHeight, 144));
+    el.style.setProperty('font-size', px.toFixed(0) + 'px', 'important');
+  }
+
   function layout() {
     if (!window.ElioSpeedo) return;
     resetAll();
@@ -142,7 +213,7 @@
     var w = svg.clientWidth || svg.getBoundingClientRect().width;
     var h = svg.clientHeight || svg.getBoundingClientRect().height;
     if (w < 10 || h < 10) return;
-    if (box.id === 'cluster_m3') { layoutM3(svg, w, h); return; }
+    if (box.id === 'cluster_m3') { layoutM3(svg, w, h); fitReadout(box, svg, w, h); return; }
 
     var kids = Array.prototype.filter.call(svg.children, function (e) { return e.tagName !== 'defs'; });
     var a = w / h;
@@ -150,11 +221,16 @@
       var H = BW / a;
       touch(svg, 'viewBox', '0 0 ' + BW + ' ' + H.toFixed(1));
       layoutTall(svg, kids, H);
-    } else if (a > BW / BH + 0.01) {
-      var W = BH * a;
-      touch(svg, 'viewBox', '0 0 ' + W.toFixed(1) + ' ' + BH);
-      layoutWide(kids, W - BW);
+      fitWings(kids, H);
+    } else {
+      if (a > BW / BH + 0.01) {
+        var W = BH * a;
+        touch(svg, 'viewBox', '0 0 ' + W.toFixed(1) + ' ' + BH);
+        layoutWide(kids, W - BW);
+      }
+      fitWings(kids, BH);
     }
+    fitReadout(box, svg, w, h);
   }
 
   var pending = false;
@@ -167,6 +243,30 @@
   if (window.ElioSpeedo) {
     var baseSetStyle = window.ElioSpeedo.setStyle;
     window.ElioSpeedo.setStyle = function (name) { baseSetStyle(name); schedule(); };
+  }
+  /* Nilai sensor yang memanjang dicek ulang agar tetap di dalam bingkai. */
+  if (window.ElioBridge) {
+    var baseLive = window.ElioBridge.live, lastSig = '';
+    window.ElioBridge.live = function (d) {
+      baseLive(d);
+      var sig = Object.keys(d).map(function (k) { return String(d[k]).length; }).join(',');
+      if (sig !== lastSig) { lastSig = sig; schedule(); }
+    };
+  }
+  /* Efek warna di area tengah: makin kencang, makin tinggi naiknya (penuh pada 200 km/h). */
+  var root = document.querySelector('.elio-speedo');
+  var fx = root && root.querySelector('.speedo-fx');
+  if (fx && !fx.querySelector('.as-speed-fill')) {
+    var fill = document.createElement('div');
+    fill.className = 'as-speed-fill';
+    fx.appendChild(fill);
+  }
+  if (window.ElioSpeedo && root) {
+    var baseSetSpeed = window.ElioSpeedo.setSpeed;
+    window.ElioSpeedo.setSpeed = function (kmh) {
+      baseSetSpeed(kmh);
+      root.style.setProperty('--as-speed', Math.min(1, window.ElioSpeedo.speed / 200).toFixed(3));
+    };
   }
   window.addEventListener('resize', schedule);
   window.AutoSplitLayout = { refresh: schedule };
