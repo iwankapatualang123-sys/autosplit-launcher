@@ -72,7 +72,7 @@
               <text x="12" y="132" fill="#64748B" font-size="7.5" font-family="monospace">KEC. RATA-RATA</text>
               <text x="12" y="154" fill="url(#elioAccentGrad)" font-size="15" font-family="monospace" font-weight="black"><tspan class="live-avg">0</tspan> <tspan font-size="8" fill="#64748B">km/h</tspan></text>
 
-              <text x="12" y="182" fill="#64748B" font-size="7" font-family="monospace">THROTTLE / LOAD</text>
+              <text x="12" y="182" fill="#64748B" font-size="7" font-family="monospace">BEBAN KECEPATAN</text>
               <rect x="12" y="190" width="88" height="6" rx="3" fill="rgba(255,255,255,0.08)" />
               <rect id="lfaLoadBar" x="12" y="190" width="6" height="6" rx="3" fill="url(#elioAccentGrad)" />
 
@@ -115,7 +115,7 @@
 
               <text x="12" y="278" fill="#64748B" font-size="7" font-family="monospace">GNSS SATELLITES</text>
               <text class="live-sats-val" x="12" y="298" fill="url(#elioAccentGrad)" font-size="8.5" font-family="monospace" font-weight="bold">🟡 0/0 SATS</text>
-              <text x="12" y="316" fill="#64748B" font-size="7" font-family="monospace">ACCEL: HARDWARE</text>
+              <text x="12" y="316" fill="#64748B" font-size="7" font-family="monospace">SUHU BATERAI: <tspan class="live-btemp" fill="url(#elioAccentGrad)" font-weight="bold">--</tspan>°C</text>
             </g>
 
             <!-- CENTER: 1. MODERN TOP SPEED HUD POD (y=6 to 92) -->
@@ -297,7 +297,7 @@
 
             <div class="mt-2 flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/60 border border-white/10 text-[9px] font-mono">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span class="text-slate-300 font-bold">BMW M3 G80 LIVE COCKPIT</span>
+              <span class="text-slate-300 font-bold live-m3info">BMW M3 G80 LIVE COCKPIT</span>
             </div>
           </div>
         </div>
@@ -336,9 +336,8 @@
               
               <line x1="14" y1="144" x2="98" y2="144" stroke="rgba(255,255,255,0.08)" />
 
-              <text x="14" y="166" fill="url(#elioAccentGrad)" font-size="8" font-family="monospace" font-weight="bold">GVC PLUS ACTIVE</text>
-              <rect x="14" y="174" width="84" height="6" rx="3" fill="rgba(255,255,255,0.08)" />
-              <rect x="14" y="174" width="56" height="6" rx="3" fill="url(#elioAccentGrad)" />
+              <text x="14" y="164" fill="#64748B" font-size="7.5" font-family="monospace">WAKTU JALAN</text>
+              <text x="14" y="186" fill="#E2E8F0" font-size="14" font-family="monospace" font-weight="bold"><tspan class="live-time">0:00:00</tspan></text>
 
               <line x1="14" y1="200" x2="98" y2="200" stroke="rgba(255,255,255,0.08)" />
 
@@ -376,8 +375,8 @@
               <text x="14" y="234" fill="url(#elioAccentGrad)" font-size="12" font-family="monospace" font-weight="bold"><tspan class="live-btemp">--</tspan> <tspan font-size="8" fill="#64748B">°C</tspan></text>
 
               <line x1="14" y1="256" x2="98" y2="256" stroke="rgba(255,255,255,0.08)" />
-              <text x="14" y="280" fill="#64748B" font-size="7.5" font-family="monospace">JINBA ITTAI LINK</text>
-              <text x="14" y="302" fill="url(#elioAccentGrad)" font-size="8.5" font-family="monospace" font-weight="bold">🟢 CALIBRATED</text>
+              <text x="14" y="280" fill="#64748B" font-size="7.5" font-family="monospace">GNSS SATELLITES</text>
+              <text class="live-sats-val" x="14" y="302" fill="url(#elioAccentGrad)" font-size="9" font-family="monospace" font-weight="bold">0/0 SATS</text>
             </g>
 
             <!-- CENTER: 1. MAZDA ACTIVE DRIVING DISPLAY HUD POD (ABOVE ANALOG DIAL, y=6 to 92) -->
@@ -513,11 +512,10 @@
 
               <line x1="14" y1="134" x2="96" y2="134" stroke="rgba(255,255,255,0.08)" />
 
-              <text x="14" y="156" fill="#64748B" font-size="8" font-family="monospace">REV MATCH</text>
-              <text x="14" y="176" fill="url(#elioAccentGrad)" font-size="11" font-family="monospace" font-weight="bold">ACTIVE</text>
-              <text x="14" y="198" fill="#64748B" font-size="8" font-family="monospace">THROTTLE: 48%</text>
-              <rect x="14" y="206" width="80" height="5" rx="2.5" fill="rgba(255,255,255,0.08)" />
-              <rect x="14" y="206" width="48" height="5" rx="2.5" fill="url(#elioAccentGrad)" />
+              <text x="14" y="156" fill="#64748B" font-size="8" font-family="monospace">KETINGGIAN</text>
+              <text x="14" y="176" fill="url(#elioAccentGrad)" font-size="11" font-family="monospace" font-weight="bold"><tspan class="live-alt-num">0</tspan> m</text>
+              <text x="14" y="198" fill="#64748B" font-size="8" font-family="monospace">KEC. MAKS</text>
+              <text x="14" y="216" fill="url(#elioAccentGrad)" font-size="11" font-family="monospace" font-weight="bold"><tspan class="live-max">0</tspan> km/h</text>
 
               <line x1="14" y1="230" x2="96" y2="230" stroke="rgba(255,255,255,0.08)" />
               <text x="14" y="252" fill="#64748B" font-size="7.5" font-family="monospace">TABLET SENSOR ACC</text>
@@ -615,6 +613,7 @@
       set('.live-sats-val', d.sats); set('.live-gnss-status', d.gnss); set('.live-max', d.max);
       set('.live-avg', d.avg); set('.live-btemp', d.btemp); set('.live-time', d.time);
       tpl('.live-acc-status', 'ACTIVE', d.acc); tpl('.live-battery-status', '--', d.bat);
+      set('.live-m3info', 'ALT ' + d.alt + ' m  \u2022  ' + d.head + '  \u2022  ' + String(d.sats || '').replace(/^[^\x00-\x7F]+\s*/, ''));
     }
   };
 })();
