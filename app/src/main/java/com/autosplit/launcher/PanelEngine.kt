@@ -38,9 +38,18 @@ class PanelEngine(private val ctx: Context, private val prefs: Prefs) {
     }
 
     /** Susunan Navigasi: A di atas (besar), B di bawah. Susunan Hiburan: sebaliknya. */
-    fun boundsA(): Rect = if (prefs.entertainmentLayout) lower() else upper()
+    fun boundsA(): Rect = when {
+        prefs.panelCount < 3 -> full()
+        prefs.entertainmentLayout -> lower()
+        else -> upper()
+    }
 
     fun boundsB(): Rect = if (prefs.entertainmentLayout) upper() else lower()
+
+    private fun full(): Rect {
+        val s = screenSize()
+        return Rect(s.x * prefs.leftPercent / 100, 0, s.x, s.y)
+    }
 
     private fun upper(): Rect {
         val s = screenSize()

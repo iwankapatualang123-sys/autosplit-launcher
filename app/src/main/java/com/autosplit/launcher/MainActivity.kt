@@ -46,6 +46,7 @@ class MainActivity : Activity() {
     private lateinit var btnA: TextView
     private lateinit var btnB: TextView
     private lateinit var btnStyle: TextView
+    private lateinit var btnStart: TextView
 
     private var gauge: GaugeView? = null
     private val tileValues = HashMap<String, TextView>()
@@ -168,7 +169,8 @@ class MainActivity : Activity() {
             it.setOnLongClickListener { pickApp(false); true }
         }
         btnStyle = chip("GAYA") { cycleStyle() }
-        addDock(dockRow, chip("MULAI 3 PANEL", true) { startPanels() })
+        btnStart = chip("MULAI", true) { startPanels() }
+        addDock(dockRow, btnStart)
         addDock(dockRow, btnA)
         addDock(dockRow, btnB)
         addDock(dockRow, btnStyle)
@@ -277,6 +279,7 @@ class MainActivity : Activity() {
     }
 
     private fun updateSlotButtons() {
+        btnStart.text = "MULAI ${prefs.panelCount} JENDELA"
         btnA.text = "A: ${engine.labelOf(prefs.panelA)}"
         btnB.text = "B: ${engine.labelOf(prefs.panelB)}"
     }
@@ -390,15 +393,24 @@ class MainActivity : Activity() {
             toast("Pilih aplikasi panel dulu: tekan lama tombol A atau B.")
             return
         }
+        val first = if (engine.isInstalled(a)) a else b
         if (engine.freeformUsable()) {
+            val wanted = if (prefs.panelCount >= 3) {
+                listOf(b to engine.boundsB(), a to engine.boundsA())
+            } else {
+                listOf(first to engine.boundsA())
+            }
+            val targets = wanted.filter { engine.isInstalled(it.first) }
             panelsActive = true
             applyInsets()
-            if (engine.isInstalled(b)) engine.launch(b, engine.boundsB(), false)
-            if (engine.isInstalled(a)) handler.postDelayed({ engine.launch(a, engine.boundsA(), false) }, 900L)
-            toast("Menjalankan speedometer + 2 aplikasi")
+            var delay = 0L
+            for ((pkg, bounds) in targets) {
+                handler.postDelayed({ engine.launch(pkg, bounds, false) }, delay)
+                delay += 900L
+            }
+            toast("Menjalankan speedometer + ${targets.size} aplikasi")
             return
         }
-        val first = if (engine.isInstalled(a)) a else b
         if (isInMultiWindowMode) {
             engine.launch(first, null, true)
         } else if (SplitService.instance != null) {
@@ -416,7 +428,11 @@ class MainActivity : Activity() {
                 .show()
             return
         }
-        toast("Mode 2 jendela: speedometer + 1 aplikasi. Ketuk A atau B untuk mengganti aplikasi di sisi kanan.")
+        if (prefs.panelCount >= 3) {
+            toast("Tablet ini belum mendukung freeform, jadi baru 2 jendela. Coba aktifkan \"Paksa mode freeform\" di ATUR.")
+        } else {
+            toast("Mode 2 jendela: speedometer + 1 aplikasi. Ketuk A atau B untuk mengganti aplikasi di sisi kanan.")
+        }
     }
 
     private fun openSettings(action: String) {
@@ -480,6 +496,7 @@ class MainActivity : Activity() {
         val items = arrayOf(
             "Satuan: ${if (prefs.useMph) "mph" else "km/jam"}",
             "Lebar panel speedometer: ${prefs.leftPercent}%",
+            "Jumlah jendela: ${prefs.panelCount} (speedometer + ${prefs.panelCount - 1} aplikasi)",
             "Susunan: ${if (prefs.entertainmentLayout) "Hiburan (video besar)" else "Navigasi (peta besar)"}",
             "Kecerahan otomatis (sensor cahaya): ${onOff(prefs.autoDim)}",
             "Layar tetap menyala: ${onOff(prefs.keepScreenOn)}",
@@ -498,25 +515,30 @@ class MainActivity : Activity() {
                     }
                     1 -> askRatio()
                     2 -> {
-                        prefs.entertainmentLayout = !prefs.entertainmentLayout
+                        prefs.panelCount = if (prefs.panelCount >= 3) 2 else 3
+                        updateSlotButtons()
                         showSettings()
                     }
                     3 -> {
-                        prefs.autoDim = !prefs.autoDim
+                        prefs.entertainmentLayout = !prefs.entertainmentLayout
                         showSettings()
                     }
                     4 -> {
+                        prefs.autoDim = !prefs.autoDim
+                        showSettings()
+                    }
+                    5 -> {
                         prefs.keepScreenOn = !prefs.keepScreenOn
                         if (prefs.keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         showSettings()
                     }
-                    5 -> {
+                    6 -> {
                         prefs.forceFreeform = !prefs.forceFreeform
                         showSettings()
                     }
-                    6 -> openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    7 -> openSettings(Settings.ACTION_HOME_SETTINGS)
+                    7 -> openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    8 -> openSettings(Settings.ACTION_HOME_SETTINGS)
                 }
             }
             .setNegativeButton("Tutup", null)

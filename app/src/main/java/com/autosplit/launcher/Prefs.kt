@@ -37,6 +37,10 @@ class Prefs(ctx: Context) {
         get() = sp.getInt("left", 34)
         set(v) = sp.edit().putInt("left", v).apply()
 
+    var panelCount: Int
+        get() = sp.getInt("count", 3)
+        set(v) = sp.edit().putInt("count", v).apply()
+
     var entertainmentLayout: Boolean
         get() = sp.getBoolean("hiburan", false)
         set(v) = sp.edit().putBoolean("hiburan", v).apply()
