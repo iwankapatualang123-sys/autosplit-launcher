@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.LinearGradient
+import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
@@ -12,35 +13,24 @@ import android.graphics.Shader
 import android.graphics.drawable.Drawable
 
 /**
- * Kartu HUD: isi transparan, garis tepi putih 2dp (sama dengan garis jendela Maps/YouTube),
- * aksen sudut tebal berwarna, dan batang aksen di tengah sisi atas. Hanya beberapa goresan
- * garis per kartu, tanpa blur, jadi tetap ringan.
+ * Kartu transparan melayang: isi kaca gelap tembus pandang dan satu garis tepi polos tebal
+ * berwarna aksen dengan sudut membulat. getOutline() memberi bentuk untuk bayangan elevation,
+ * sehingga kartu terlihat melayang. Dua goresan per kartu, tanpa blur.
  */
 class GlassDrawable(
     density: Float,
-    radiusDp: Float = 4f,
+    radiusDp: Float = 14f,
     private val accentFill: Boolean = false
 ) : Drawable() {
 
     private val radius = radiusDp * density
-    private val line = maxOf(2f, density * 2f)
-    private val cornerLen = 18f * density
-    private val cornerW = maxOf(3f, density * 3.2f)
-    private val barLen = 56f * density
+    private val line = maxOf(3f, density * 3f)
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = line
-    }
-    private val corner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = cornerW
-        strokeCap = Paint.Cap.SQUARE
-    }
-    private val bar = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = cornerW
+        strokeJoin = Paint.Join.ROUND
         strokeCap = Paint.Cap.ROUND
     }
 
@@ -49,53 +39,31 @@ class GlassDrawable(
     override fun onBoundsChange(b: Rect) {
         val h = b.height().toFloat()
         val a = Pal.accent
-        val top = if (accentFill) Color.argb(70, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(26, 150, 200, 255)
-        val bottom = if (accentFill) Color.argb(24, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(6, 0, 229, 255)
+        val top = if (accentFill) Color.argb(80, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(90, 20, 28, 40)
+        val bottom = if (accentFill) Color.argb(30, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(50, 6, 10, 16)
         fill.shader = LinearGradient(0f, 0f, 0f, h, top, bottom, Shader.TileMode.CLAMP)
         rect.set(b.left + line / 2f, b.top + line / 2f, b.right - line / 2f, b.bottom - line / 2f)
-        val half = minOf(barLen, rect.width() * 0.3f) / 2f
-        val cx = (rect.left + rect.right) / 2f
-        bar.shader = LinearGradient(cx - half, 0f, cx + half, 0f, Pal.accent, Pal.accent2, Shader.TileMode.CLAMP)
     }
 
     override fun draw(c: Canvas) {
         c.drawRoundRect(rect, radius, radius, fill)
-        outline.color = if (accentFill) Pal.accent else Color.argb(235, 255, 255, 255)
+        outline.color = Pal.accent
         c.drawRoundRect(rect, radius, radius, outline)
+    }
 
-        corner.color = Pal.accent
-        val l = rect.left
-        val t = rect.top
-        val r = rect.right
-        val b = rect.bottom
-        val len = minOf(cornerLen, rect.width() / 3f, rect.height() / 3f)
-        c.drawLine(l, t, l + len, t, corner)
-        c.drawLine(l, t, l, t + len, corner)
-        c.drawLine(r, t, r - len, t, corner)
-        c.drawLine(r, t, r, t + len, corner)
-        c.drawLine(l, b, l + len, b, corner)
-        c.drawLine(l, b, l, b - len, corner)
-        c.drawLine(r, b, r - len, b, corner)
-        c.drawLine(r, b, r, b - len, corner)
-
-        bar.color = Pal.accent
-        val half = minOf(barLen, rect.width() * 0.3f) / 2f
-        val cx = (l + r) / 2f
-        c.drawLine(cx - half, t, cx + half, t, bar)
+    override fun getOutline(o: Outline) {
+        o.setRoundRect(bounds, radius)
+        o.alpha = 0.45f
     }
 
     override fun setAlpha(alpha: Int) {
         fill.alpha = alpha
         outline.alpha = alpha
-        corner.alpha = alpha
-        bar.alpha = alpha
     }
 
     override fun setColorFilter(colorFilter: ColorFilter?) {
         fill.colorFilter = colorFilter
         outline.colorFilter = colorFilter
-        corner.colorFilter = colorFilter
-        bar.colorFilter = colorFilter
     }
 
     @Suppress("OVERRIDE_DEPRECATION")

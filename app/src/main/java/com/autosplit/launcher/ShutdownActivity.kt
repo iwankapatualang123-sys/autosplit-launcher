@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Build
@@ -88,8 +87,11 @@ class ShutdownActivity : Activity() {
 
     private fun card(accent: Boolean): Drawable = LayerDrawable(
         arrayOf(
-            ColorDrawable(Color.argb(if (accent) 0 else 235, 8, 12, 18)),
-            GlassDrawable(resources.displayMetrics.density, 4f, accent)
+            android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(Color.argb(if (accent) 0 else 235, 8, 12, 18))
+            },
+            GlassDrawable(resources.displayMetrics.density, 14f, accent)
         )
     )
 
@@ -102,6 +104,7 @@ class ShutdownActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             background = card(false)
+            elevation = dp(10).toFloat()
             setPadding(dp(36), dp(28), dp(36), dp(24))
         }
         box.addView(TextView(this).apply {

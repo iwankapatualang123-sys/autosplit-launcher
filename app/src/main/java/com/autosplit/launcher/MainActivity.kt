@@ -192,7 +192,7 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
-    private fun glass(accent: Boolean = false) = GlassDrawable(resources.displayMetrics.density, 4f, accent)
+    private fun glass(accent: Boolean = false) = GlassDrawable(resources.displayMetrics.density, 14f, accent)
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
@@ -208,7 +208,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = glass()
-            setPadding(dp(14), dp(8), dp(14), dp(8))
+            elevation = dp(6).toFloat()
+            setPadding(dp(16), dp(8), dp(16), dp(8))
         }
         val clock = TextClock(this).apply {
             format24Hour = "HH:mm"
@@ -244,7 +245,10 @@ class MainActivity : Activity() {
             true
         }
 
-        val dockRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val dockRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(2), dp(4), dp(2), dp(10))
+        }
         btnA = chip("A") { launchSlot(true) }.also {
             it.setOnLongClickListener { pickApp(true); true }
         }
@@ -263,6 +267,7 @@ class MainActivity : Activity() {
         addDock(dockRow, chip("LAYAR PENUH") { panelsActive = false; applyInsets() })
         val dock = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
+            clipToPadding = false
             addView(dockRow)
         }
 
@@ -294,6 +299,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             background = glass()
+            elevation = dp(6).toFloat()
             setPadding(dp(8), dp(8), dp(8), dp(8))
         }
         val l = TextView(this).apply {
@@ -334,8 +340,9 @@ class MainActivity : Activity() {
             maxLines = 1
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             minHeight = dp(52)
-            setPadding(dp(18), 0, dp(18), 0)
+            setPadding(dp(20), 0, dp(20), 0)
             background = glass(accent)
+            elevation = dp(6).toFloat()
             setOnClickListener { onClick() }
         }
 
@@ -379,7 +386,7 @@ class MainActivity : Activity() {
             val bottom = dp(14) + dp(SlotOverlay.PAD_DP.toInt()) - dp(3)
             root.setPadding(dp(11), top, right, bottom)
         } else {
-            root.setPadding(dp(8), dp(6), dp(8), dp(6))
+            root.setPadding(dp(14), dp(12), dp(14), dp(8))
         }
         updateOverlay(reserve)
     }

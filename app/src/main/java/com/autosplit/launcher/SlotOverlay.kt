@@ -4,13 +4,14 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.View
 
 /**
- * Sudut aksen tebal di sekeliling jendela aplikasi (koordinat layar) plus label, digambar di
- * belakang jendela sehingga bingkai putih jendela terlihat satu desain dengan kartu speedometer.
- * Slot tanpa bingkai hanya menggambar label. Tidak menangkap sentuhan.
+ * Bingkai tebal polos berwarna aksen: satu bingkai penuh di tepi layar, dan bingkai utuh di
+ * sekeliling tiap jendela aplikasi (koordinat layar) beserta labelnya. Digambar di belakang
+ * jendela aplikasi. Tidak menangkap sentuhan.
  */
 class SlotOverlay(ctx: Context) : View(ctx) {
 
@@ -19,11 +20,18 @@ class SlotOverlay(ctx: Context) : View(ctx) {
     private var slots: List<Slot> = emptyList()
     private val d = ctx.resources.displayMetrics.density
     private val loc = IntArray(2)
+    private val box = RectF()
 
-    private val bracket = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val framePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = maxOf(3f, d * 3.2f)
-        strokeCap = Paint.Cap.SQUARE
+        strokeWidth = maxOf(3.5f, d * 3.5f)
+        strokeJoin = Paint.Join.ROUND
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val screenPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = maxOf(4f, d * 4f)
+        strokeJoin = Paint.Join.ROUND
     }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = 11f * d
@@ -37,33 +45,31 @@ class SlotOverlay(ctx: Context) : View(ctx) {
     }
 
     override fun onDraw(c: Canvas) {
+        framePaint.color = Pal.accent
+        screenPaint.color = Pal.accent
+        text.color = Pal.accent
+
+        val sw = screenPaint.strokeWidth
+        box.set(sw / 2f + 2f * d, sw / 2f + 2f * d, width - sw / 2f - 2f * d, height - sw / 2f - 2f * d)
+        c.drawRoundRect(box, 18f * d, 18f * d, screenPaint)
+
         if (slots.isEmpty()) return
         getLocationOnScreen(loc)
-        bracket.color = Pal.accent
-        text.color = Pal.accent
         val pad = PAD_DP * d
         val strip = STRIP_DP * d
-        val len = 22f * d
+        val r = 14f * d
         for (s in slots) {
-            val labelX = s.rect.left - loc[0] + pad
-            val labelY = s.rect.top - loc[1] - strip * 0.3f
             if (s.frame) {
-                val l = s.rect.left - loc[0] - pad
-                val r = s.rect.right - loc[0] + pad
-                val t = s.rect.top - loc[1] - strip
-                val b = s.rect.bottom - loc[1] + pad
-                corner(c, l, t, len, 1f, 1f)
-                corner(c, r, t, len, -1f, 1f)
-                corner(c, l, b, len, 1f, -1f)
-                corner(c, r, b, len, -1f, -1f)
+                box.set(
+                    s.rect.left - loc[0] - pad,
+                    s.rect.top - loc[1] - strip,
+                    s.rect.right - loc[0] + pad,
+                    s.rect.bottom - loc[1] + pad
+                )
+                c.drawRoundRect(box, r, r, framePaint)
             }
-            c.drawText(s.label, labelX, labelY, text)
+            c.drawText(s.label, s.rect.left - loc[0] + pad, s.rect.top - loc[1] - strip * 0.3f, text)
         }
-    }
-
-    private fun corner(c: Canvas, x: Float, y: Float, len: Float, dx: Float, dy: Float) {
-        c.drawLine(x, y, x + len * dx, y, bracket)
-        c.drawLine(x, y, x, y + len * dy, bracket)
     }
 
     companion object {
