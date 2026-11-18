@@ -4,18 +4,20 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 
 /**
- * Kartu transparan melayang: isi kaca gelap tembus pandang dan satu garis tepi polos tebal
- * berwarna aksen dengan sudut membulat. getOutline() memberi bentuk untuk bayangan elevation,
- * sehingga kartu terlihat melayang. Dua goresan per kartu, tanpa blur.
+ * Kartu transparan melayang: isi kaca gelap tembus pandang dan satu garis tepi tebal dengan sudut
+ * membulat. Garis polos warna aksen, atau gradasi berputar saat Ambient.running (mode Berjalan).
+ * getOutline() memberi bentuk untuk bayangan elevation.
  */
 class GlassDrawable(
     density: Float,
@@ -35,6 +37,9 @@ class GlassDrawable(
     }
 
     private val rect = RectF()
+    private val rot = Matrix()
+    private var sweep: SweepGradient? = null
+    private var sweepKey = 0L
 
     override fun onBoundsChange(b: Rect) {
         val h = b.height().toFloat()
@@ -43,11 +48,32 @@ class GlassDrawable(
         val bottom = if (accentFill) Color.argb(30, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(50, 6, 10, 16)
         fill.shader = LinearGradient(0f, 0f, 0f, h, top, bottom, Shader.TileMode.CLAMP)
         rect.set(b.left + line / 2f, b.top + line / 2f, b.right - line / 2f, b.bottom - line / 2f)
+        sweep = null
     }
+
+    private fun dim(c: Int): Int = Color.argb(90, Color.red(c), Color.green(c), Color.blue(c))
 
     override fun draw(c: Canvas) {
         c.drawRoundRect(rect, radius, radius, fill)
-        outline.color = Pal.accent
+        if (Ambient.running) {
+            val key = Pal.accent.toLong() shl 32 or (Pal.accent2.toLong() and 0xFFFFFFFFL)
+            val cx = rect.centerX()
+            val cy = rect.centerY()
+            val sg = sweep?.takeIf { sweepKey == key } ?: SweepGradient(
+                cx, cy,
+                intArrayOf(Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent),
+                null
+            ).also {
+                sweep = it
+                sweepKey = key
+            }
+            rot.setRotate(Ambient.angle(), cx, cy)
+            sg.setLocalMatrix(rot)
+            outline.shader = sg
+        } else {
+            outline.shader = null
+            outline.color = Pal.accent
+        }
         c.drawRoundRect(rect, radius, radius, outline)
     }
 

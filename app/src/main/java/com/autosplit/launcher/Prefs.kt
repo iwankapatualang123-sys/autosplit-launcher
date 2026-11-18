@@ -44,6 +44,11 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("framerun", false)
         set(v) = sp.edit().putBoolean("framerun", v).apply()
 
+    /** Indeks kecepatan warna berjalan, lihat MainActivity.FRAME_SPEEDS. */
+    var frameSpeed: Int
+        get() = sp.getInt("framespeed", 1)
+        set(v) = sp.edit().putInt("framespeed", v).apply()
+
     var showTiles: Boolean
         get() = sp.getBoolean("tiles", false)
         set(v) = sp.edit().putBoolean("tiles", v).apply()

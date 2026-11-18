@@ -55,6 +55,22 @@ class MainActivity : Activity() {
     private var gauge: SpeedoView? = null
     private val eq = EqHub { gauge?.setBands(it) }
     private var eqWarned = false
+    private var lowBatWarned = 100
+    private var lowBatDialog: AlertDialog? = null
+    private val animViews = ArrayList<View>()
+    private var frameTick = 0
+
+    /** Menggambar ulang semua bingkai ~30 kali per detik selama mode Berjalan aktif. */
+    private val frameCallback = object : android.view.Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!Ambient.running) return
+            if (frameTick++ % 2 == 0) {
+                overlay.invalidate()
+                for (v in animViews) v.invalidate()
+            }
+            android.view.Choreographer.getInstance().postFrameCallback(this)
+        }
+    }
     private val tileValues = HashMap<String, TextView>()
     private val tileBoxes = HashMap<String, View>()
 
@@ -149,6 +165,7 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         eq.stop()
+        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
         gauge?.onPause()
         handler.removeCallbacks(poll)
         hub.stop()
@@ -224,6 +241,7 @@ class MainActivity : Activity() {
             elevation = dp(6).toFloat()
             setPadding(dp(16), dp(8), dp(16), dp(8))
         }
+        animViews.add(status)
         val clock = TextClock(this).apply {
             format24Hour = "HH:mm"
             format12Hour = "HH:mm"
@@ -315,6 +333,7 @@ class MainActivity : Activity() {
             elevation = dp(6).toFloat()
             setPadding(dp(8), dp(8), dp(8), dp(8))
         }
+        animViews.add(box)
         val l = TextView(this).apply {
             text = label
             setTextColor(Pal.MUTED)
@@ -357,6 +376,7 @@ class MainActivity : Activity() {
             background = glass(accent)
             elevation = dp(6).toFloat()
             setOnClickListener { onClick() }
+            animViews.add(this)
         }
 
     private fun addDock(row: LinearLayout, v: View) {
@@ -367,7 +387,10 @@ class MainActivity : Activity() {
 
     private fun setGauge() {
         val g = gauge ?: SpeedoView(this)
-        g.configure(prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco, if (prefs.eco) 0 else prefs.eqMode, prefs.frameRunning && !prefs.eco)
+        g.configure(
+            prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco, if (prefs.eco) 0 else prefs.eqMode,
+            prefs.frameRunning && !prefs.eco, FRAME_SPEEDS[prefs.frameSpeed.coerceIn(0, FRAME_SPEEDS.size - 1)]
+        )
         if (g.parent == null) holder.addView(g, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         gauge = g
         btnStyle.text = "GAYA: ${STYLE_NAMES[prefs.gaugeStyle.coerceIn(0, STYLE_NAMES.size - 1)]}"
@@ -438,6 +461,7 @@ class MainActivity : Activity() {
         tick++
         if (tick % 8 == 1) {
             hub.readBattery()
+            checkBattery()
             link.poll()
             applyInsets()
             ramText.text = "RAM ${hub.ramFreeMb()} MB"
@@ -577,12 +601,43 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Peringatan baterai lemah di bawah 20% dan 10% saat tidak dicas; hilang sendiri saat dicas. */
+    private fun checkBattery() {
+        val pct = hub.batteryPct
+        if (pct < 0) return
+        if (hub.charging || pct >= 25) {
+            lowBatWarned = 100
+            lowBatDialog?.dismiss()
+            lowBatDialog = null
+            return
+        }
+        val threshold = when {
+            pct < 10 -> 10
+            pct < 20 -> 20
+            else -> return
+        }
+        if (threshold >= lowBatWarned) return
+        lowBatWarned = threshold
+        lowBatDialog?.dismiss()
+        lowBatDialog = AlertDialog.Builder(this, DIALOG)
+            .setTitle("Baterai lemah: $pct%")
+            .setMessage("Baterai tablet tinggal $pct%. Colokkan pengisi daya mobil agar unit tidak mati.")
+            .setPositiveButton("Oke", null)
+            .showLeft()
+    }
+
     private fun hasAudioPermission(): Boolean =
         checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
     /** Bingkai layar berjalan/diam dan equalizer, mengikuti pengaturan dan Mode Hemat. */
     private fun applyEffects() {
-        overlay.running = prefs.frameRunning && !prefs.eco
+        Ambient.periodMs = FRAME_SPEEDS[prefs.frameSpeed.coerceIn(0, FRAME_SPEEDS.size - 1)] * 1000L
+        Ambient.running = prefs.frameRunning && !prefs.eco
+        val choreo = android.view.Choreographer.getInstance()
+        choreo.removeFrameCallback(frameCallback)
+        if (Ambient.running) choreo.postFrameCallback(frameCallback)
+        overlay.invalidate()
+        for (v in animViews) v.invalidate()
         if (prefs.eqMode > 0 && !prefs.eco && hasAudioPermission()) {
             if (!eq.start() && !eqWarned) {
                 eqWarned = true
@@ -684,8 +739,14 @@ class MainActivity : Activity() {
                 applyEffects()
                 showSettings()
             },
-            "Bingkai layar & speedometer: ${if (prefs.frameRunning) "Berjalan (gradasi)" else "Diam"}" to {
+            "Bingkai (layar, speedometer, kartu, menu): ${if (prefs.frameRunning) "Berjalan (gradasi)" else "Diam"}" to {
                 prefs.frameRunning = !prefs.frameRunning
+                setGauge()
+                applyEffects()
+                showSettings()
+            },
+            "Kecepatan warna berjalan: ${FRAME_SPEED_NAMES[prefs.frameSpeed.coerceIn(0, FRAME_SPEED_NAMES.size - 1)]}" to {
+                prefs.frameSpeed = (prefs.frameSpeed + 1) % FRAME_SPEEDS.size
                 setGauge()
                 applyEffects()
                 showSettings()
@@ -919,6 +980,9 @@ class MainActivity : Activity() {
         private const val REQ_ADMIN = 101
         private const val REQ_AUDIO = 102
         private val EQ_NAMES = arrayOf("Mati", "Batang", "Gelombang")
+        /** Detik per satu putaran warna berjalan. */
+        private val FRAME_SPEEDS = intArrayOf(14, 9, 6, 3)
+        private val FRAME_SPEED_NAMES = arrayOf("Sangat lambat (14 dtk)", "Lambat (9 dtk)", "Sedang (6 dtk)", "Cepat (3 dtk)")
         private const val DIALOG = android.R.style.Theme_Material_Dialog_Alert
         private const val LOCK_MSG = "Dikunci saat mobil bergerak"
         private val STYLE_NAMES = arrayOf("LEXUS F-SPORT", "BMW M3", "MAZDA KODO", "HONDA TYPE R")

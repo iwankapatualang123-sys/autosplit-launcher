@@ -85,13 +85,30 @@
     if (mode === 'wave') drawWave(); else drawBars(st === 'honda');
   }
 
+  var target = [], lastRecv = 0, animating = false;
+  function step() {
+    if (performance.now() - lastRecv > 500) target = [];
+    var active = false;
+    for (var i = 0; i < bands.length; i++) {
+      var t = target[i] || 0, d = bands[i];
+      d += (t - d) * (t > d ? 0.45 : 0.1);
+      if (d < 0.003) d = 0;
+      bands[i] = d;
+      if (d > 0 || t > 0.01) active = true;
+    }
+    draw();
+    if (active && mode !== 'off') requestAnimationFrame(step); else animating = false;
+  }
+
   window.ElioEq = {
-    setMode: function (m) { mode = m; if (m === 'off') bands = []; draw(); },
+    setMode: function (m) { mode = m; if (m === 'off') { bands = []; target = []; } draw(); },
     setBands: function (b) {
       if (mode === 'off') return;
-      for (var i = 0; i < b.length; i++) bands[i] = Math.max(b[i], (bands[i] || 0) * 0.82);
+      target = b.slice();
+      lastRecv = performance.now();
+      while (bands.length < b.length) bands.push(0);
       bands.length = b.length;
-      draw();
+      if (!animating) { animating = true; requestAnimationFrame(step); }
     },
     redraw: draw
   };

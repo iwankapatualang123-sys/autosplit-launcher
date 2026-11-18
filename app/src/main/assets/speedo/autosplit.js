@@ -261,13 +261,40 @@
     fill.className = 'as-speed-fill';
     fx.appendChild(fill);
   }
+  /* Data sensor datang tiap ~250 ms; nilai tampilan dikejar halus per frame layar
+     (konstanta waktu ~0.22 s) sehingga jarum, busur, angka, LED, dan efek kecepatan bergerak lembut. */
   if (window.ElioSpeedo && root) {
-    var baseSetSpeed = window.ElioSpeedo.setSpeed;
-    window.ElioSpeedo.setSpeed = function (kmh) {
-      baseSetSpeed(kmh);
-      root.style.setProperty('--as-speed', Math.min(1, window.ElioSpeedo.speed / 200).toFixed(3));
+    var baseSetSpeed = window.ElioSpeedo.setSpeed, baseSetG = window.ElioSpeedo.setGForce;
+    var tS = 0, dS = 0, tG = 0, dG = 0, gOn = false, lastTs = 0, animating = false, shownS = -1;
+    var step = function (ts) {
+      var dt = lastTs ? Math.min(0.1, (ts - lastTs) / 1000) : 0.016;
+      lastTs = ts;
+      var k = 1 - Math.exp(-dt / 0.22);
+      dS += (tS - dS) * k;
+      dG += (tG - dG) * k;
+      var doneS = Math.abs(tS - dS) < 0.25, doneG = Math.abs(tG - dG) < 0.004;
+      if (doneS) dS = tS;
+      if (doneG) dG = tG;
+      var r = Math.round(dS);
+      if (gOn && !doneG) baseSetG(dG);
+      if (r !== shownS || (gOn && doneG)) { shownS = r; baseSetSpeed(r); }
+      root.style.setProperty('--as-speed', Math.min(1, dS / 200).toFixed(3));
+      if (doneS && doneG) { animating = false; lastTs = 0; if (gOn) baseSetG(dG); } else requestAnimationFrame(step);
+    };
+    var kick = function () { if (!animating) { animating = true; requestAnimationFrame(step); } };
+    window.ElioSpeedo.setSpeed = function (kmh) { tS = Math.max(0, Math.min(260, Number(kmh) || 0)); kick(); };
+    window.ElioSpeedo.setGForce = function (g) {
+      if (g === null || g === undefined || isNaN(Number(g))) { gOn = false; baseSetG(g); return; }
+      tG = Number(g); gOn = true; kick();
     };
   }
+  window.AutoSplitFx = {
+    setFrameSpeed: function (sec) {
+      if (root) root.style.setProperty('--as-frame-dur', sec + 's');
+      var spin = document.getElementById('asRunSpin');
+      if (spin) spin.setAttribute('dur', sec + 's');
+    }
+  };
   window.addEventListener('resize', schedule);
   window.AutoSplitLayout = { refresh: schedule };
   schedule();

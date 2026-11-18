@@ -13,26 +13,17 @@ import android.view.View
 
 /**
  * Bingkai tebal berwarna aksen: satu bingkai penuh di tepi layar, dan bingkai utuh di sekeliling
- * tiap jendela aplikasi beserta labelnya. Bingkai layar bisa Diam (warna tetap) atau Berjalan
- * (gradasi soft berputar ~2 detik per putaran, seperti ambient light). Tidak menangkap sentuhan.
+ * tiap jendela aplikasi beserta labelnya. Bingkai bisa Diam (warna tetap) atau Berjalan
+ * (gradasi soft berputar mengikuti jam Ambient, seperti ambient light). Tidak menangkap sentuhan.
  */
 class SlotOverlay(ctx: Context) : View(ctx) {
 
     class Slot(val rect: Rect, val label: String, val frame: Boolean = true)
 
-    var running = false
-        set(value) {
-            field = value
-            sweep = null
-            schedule()
-            invalidate()
-        }
-
     private var slots: List<Slot> = emptyList()
     private val d = ctx.resources.displayMetrics.density
     private val loc = IntArray(2)
     private val box = RectF()
-    private var angle = 0f
     private val rot = Matrix()
     private var sweep: SweepGradient? = null
 
@@ -63,32 +54,9 @@ class SlotOverlay(ctx: Context) : View(ctx) {
         letterSpacing = 0.12f
     }
 
-    private val ticker = object : Runnable {
-        override fun run() {
-            angle = (angle + 6f) % 360f
-            invalidate()
-            schedule()
-        }
-    }
-
-    private fun schedule() {
-        removeCallbacks(ticker)
-        if (running && isAttachedToWindow) postDelayed(ticker, 33L)
-    }
-
     fun setSlots(list: List<Slot>) {
         slots = list
         invalidate()
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        schedule()
-    }
-
-    override fun onDetachedFromWindow() {
-        removeCallbacks(ticker)
-        super.onDetachedFromWindow()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -104,13 +72,13 @@ class SlotOverlay(ctx: Context) : View(ctx) {
         val sw = screenPaint.strokeWidth
         box.set(sw / 2f + d, sw / 2f + d, width - sw / 2f - d, height - sw / 2f - d)
         val radius = 20f * d
-        if (running) {
-            val sg = sweep ?: SweepGradient(
+        val sg: SweepGradient? = if (Ambient.running) (sweep ?: SweepGradient(
                 width / 2f, height / 2f,
                 intArrayOf(Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent, Pal.accent2, dim(Pal.accent2), Pal.accent),
                 null
-            ).also { sweep = it }
-            rot.setRotate(angle, width / 2f, height / 2f)
+            ).also { sweep = it }) else null
+        if (sg != null) {
+            rot.setRotate(Ambient.angle(), width / 2f, height / 2f)
             sg.setLocalMatrix(rot)
             screenPaint.shader = sg
             glowWide.shader = sg
@@ -136,6 +104,7 @@ class SlotOverlay(ctx: Context) : View(ctx) {
                     s.rect.right - loc[0] + pad,
                     s.rect.bottom - loc[1] + pad
                 )
+                if (sg != null) framePaint.shader = sg else { framePaint.shader = null; framePaint.color = Pal.accent }
                 c.drawRoundRect(box, r, r, framePaint)
             }
             c.drawText(s.label, s.rect.left - loc[0] + pad, s.rect.top - loc[1] - strip * 0.3f, text)

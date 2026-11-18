@@ -44,7 +44,7 @@
     rgba(var(--theme-accent-2-rgb), 0.08) 100%);
   -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
   mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
-  transition: height 0.35s ease-out;
+  transition: none;
 }
 .elio-speedo .as-speed-fill::before {
   content: ''; position: absolute; left: 8%; right: 8%; top: 0; height: 4px; border-radius: 4px;
@@ -68,5 +68,13 @@
     var(--theme-accent));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
-  animation: asFrameSpin 2s linear infinite;
+  animation: asFrameSpin var(--as-frame-dur, 9s) linear infinite;
 }
+
+/* Mode Berjalan: bingkai dalam (kotak sensor, pod, siku) ikut gradasi berputar. */
+.elio-speedo.as-frame-run .elio-wing,
+.elio-speedo.as-frame-run .elio-wing-top,
+.elio-speedo.as-frame-run .elio-frame,
+.elio-speedo.as-frame-run .elio-frame-line { stroke: url(#asRunGrad); }
+/* Gerakan lampu LED Honda lebih lembut */
+.elio-speedo [id^="hondaLed"] { transition: opacity 0.35s ease-out, filter 0.35s ease-out; }

@@ -23,6 +23,7 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
     private var eco = false
     private var eq = "off"
     private var frameRun = false
+    private var frameSec = 9
     private val sb = StringBuilder(256)
 
     private var lastSpeed = -1
@@ -47,7 +48,8 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
         loadUrl("file:///android_asset/speedo/index.html")
     }
 
-    fun configure(styleIndex: Int, color1: Int, color2: Int, ecoMode: Boolean, eqMode: Int, frameRunning: Boolean) {
+    fun configure(styleIndex: Int, color1: Int, color2: Int, ecoMode: Boolean, eqMode: Int, frameRunning: Boolean, frameSeconds: Int) {
+        frameSec = frameSeconds
         style = STYLES[styleIndex.coerceIn(0, STYLES.size - 1)]
         c1 = hex(color1)
         c2 = hex(color2)
@@ -95,7 +97,8 @@ class SpeedoView(ctx: Context) : WebView(ctx) {
         if (!ready) return
         js(
             "ElioSpeedo.setStyle('$style');ElioSpeedo.setGradient('$c1','$c2');ElioSpeedo.setEco($eco);" +
-                "ElioEq.setMode('$eq');document.querySelector('.elio-speedo').classList.toggle('as-frame-run',$frameRun);"
+                "ElioEq.setMode('$eq');document.querySelector('.elio-speedo').classList.toggle('as-frame-run',$frameRun);" +
+                "AutoSplitFx.setFrameSpeed($frameSec);"
         )
         lastSpeed = -1
         lastG = Int.MIN_VALUE
