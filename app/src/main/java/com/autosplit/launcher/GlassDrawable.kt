@@ -53,6 +53,9 @@ class GlassDrawable(
         val bottom = if (accentFill) Color.argb(24, Color.red(a), Color.green(a), Color.blue(a)) else Color.argb(6, 0, 229, 255)
         fill.shader = LinearGradient(0f, 0f, 0f, h, top, bottom, Shader.TileMode.CLAMP)
         rect.set(b.left + line / 2f, b.top + line / 2f, b.right - line / 2f, b.bottom - line / 2f)
+        val half = minOf(barLen, rect.width() * 0.3f) / 2f
+        val cx = (rect.left + rect.right) / 2f
+        bar.shader = LinearGradient(cx - half, 0f, cx + half, 0f, Pal.accent, Pal.accent2, Shader.TileMode.CLAMP)
     }
 
     override fun draw(c: Canvas) {

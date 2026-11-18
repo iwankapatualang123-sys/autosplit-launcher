@@ -7,6 +7,7 @@ import android.os.Build
 object Pal {
     /** Warna aksen yang dipilih pengguna; diisi dari Prefs saat aplikasi dibuka. */
     var accent: Int = Color.parseColor("#00E5FF")
+    var accent2: Int = Color.parseColor("#A855F7")
 
     val BG = Color.parseColor("#05070D")
     val CYAN: Int get() = accent
@@ -25,6 +26,18 @@ class Prefs(ctx: Context) {
     var accent: Int
         get() = sp.getInt("accent", Color.parseColor("#00E5FF"))
         set(v) = sp.edit().putInt("accent", v).apply()
+
+    var accent2: Int
+        get() = sp.getInt("accent2", Color.parseColor("#A855F7"))
+        set(v) = sp.edit().putInt("accent2", v).apply()
+
+    var eco: Boolean
+        get() = sp.getBoolean("eco", false)
+        set(v) = sp.edit().putBoolean("eco", v).apply()
+
+    var showTiles: Boolean
+        get() = sp.getBoolean("tiles", false)
+        set(v) = sp.edit().putBoolean("tiles", v).apply()
 
     var useMph: Boolean
         get() = sp.getBoolean("mph", false)

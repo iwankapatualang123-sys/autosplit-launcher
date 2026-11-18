@@ -52,7 +52,7 @@ class MainActivity : Activity() {
     private lateinit var btnStart: TextView
     private lateinit var overlay: SlotOverlay
 
-    private var gauge: GaugeView? = null
+    private var gauge: SpeedoView? = null
     private val tileValues = HashMap<String, TextView>()
     private val tileBoxes = HashMap<String, View>()
 
@@ -75,6 +75,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         Pal.accent = prefs.accent
+        Pal.accent2 = prefs.accent2
         hub = SensorHub(this)
         link = LinkHub(this)
         engine = PanelEngine(this, prefs)
@@ -136,6 +137,7 @@ class MainActivity : Activity() {
         super.onStart()
         hub.start()
         link.start()
+        gauge?.onResume()
         syncChargeService()
         updateSlotButtons()
         applyInsets()
@@ -143,10 +145,18 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        gauge?.onPause()
         handler.removeCallbacks(poll)
         hub.stop()
         link.stop()
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        gauge?.destroy()
+        gauge = null
+        super.onDestroy()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -215,10 +225,7 @@ class MainActivity : Activity() {
         status.addView(ramText, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.8f))
         status.addView(indicator, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        holder = FrameLayout(this).apply {
-            background = glass()
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-        }
+        holder = FrameLayout(this)
 
         val grid = GridLayout(this).apply { columnCount = 4 }
         addTile(grid, T_HEAD, "ARAH")
@@ -263,7 +270,7 @@ class MainActivity : Activity() {
         val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
         root.addView(status, LinearLayout.LayoutParams(full, wrap).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
         root.addView(holder, LinearLayout.LayoutParams(full, 0, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
-        root.addView(grid, LinearLayout.LayoutParams(full, wrap))
+        if (prefs.showTiles) root.addView(grid, LinearLayout.LayoutParams(full, wrap))
         root.addView(dock, LinearLayout.LayoutParams(full, wrap))
         overlay = SlotOverlay(this)
         val frame = FrameLayout(this)
@@ -339,16 +346,9 @@ class MainActivity : Activity() {
     }
 
     private fun setGauge() {
-        holder.removeAllViews()
-        val g: GaugeView = when (prefs.gaugeStyle) {
-            1 -> BmwLadderView(this)
-            2 -> RingGaugeView(this, true)
-            3 -> HondaGaugeView(this)
-            else -> RingGaugeView(this, false)
-        }
-        g.maxSpeed = if (prefs.useMph) 160f else 240f
-        g.unit = if (prefs.useMph) "mph" else "km/h"
-        holder.addView(g, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val g = gauge ?: SpeedoView(this)
+        g.configure(prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco)
+        if (g.parent == null) holder.addView(g, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         gauge = g
         btnStyle.text = "GAYA: ${STYLE_NAMES[prefs.gaugeStyle.coerceIn(0, STYLE_NAMES.size - 1)]}"
     }
@@ -412,8 +412,8 @@ class MainActivity : Activity() {
         val mph = prefs.useMph
         val k = if (mph) 2.23694f else 3.6f
         val unitName = if (mph) "mph" else "km/j"
-        gauge?.setSpeed(hub.currentSpeedMps() * k)
-        gauge?.setG(hub.latG, hub.longG)
+        gauge?.setSpeed(hub.currentSpeedMps() * 3.6f)
+        gauge?.setG(hub.latG)
 
         tick++
         if (tick % 8 == 1) {
@@ -456,7 +456,34 @@ class MainActivity : Activity() {
         tileBoxes[T_LUX]?.visibility = if (hub.hasLight) View.VISIBLE else View.GONE
         tileValues[T_LUX]?.text = if (hub.lux < 0f) "—" else f("%.0f lx", hub.lux)
 
+        if (tick % 4 == 1) pushLive(h, alt)
         autoBrightness()
+    }
+
+    /** Data sensor untuk panel samping template speedometer. */
+    private fun pushLive(heading: Float, alt: Double) {
+        val g = gauge ?: return
+        val fix = hub.gpsStatus().startsWith("GPS ")
+        val dot = if (fix) "\uD83D\uDFE2" else "\uD83D\uDFE1"
+        val t = hub.tripMovingSec.toLong()
+        val o = org.json.JSONObject()
+        o.put("trip", f("%.1f", hub.tripMeters / 1000.0))
+        o.put("alt", if (alt.isNaN()) "--" else f("%.0f", alt))
+        o.put("head", if (heading.isNaN()) "--" else "${cardinalEn(heading)} ${heading.roundToInt() % 360}\u00B0")
+        o.put("sats", "$dot ${hub.satsUsed}/${hub.satsVisible} SATS")
+        o.put("gnss", if (fix) "$dot 3D FIX (${hub.satsUsed})" else "$dot GNSS SEARCH")
+        o.put("max", f("%.0f", hub.tripMaxMps * 3.6f))
+        o.put("avg", if (hub.tripMovingSec > 5.0) f("%.0f", hub.tripMeters / hub.tripMovingSec * 3.6) else "0")
+        o.put("btemp", if (hub.batteryTempC.isNaN()) "--" else f("%.0f", hub.batteryTempC))
+        o.put("time", f("%d:%02d:%02d", t / 3600, (t % 3600) / 60, t % 60))
+        o.put("acc", if (hub.charging) "ACTIVE" else "OFF")
+        o.put("bat", if (hub.batteryPct >= 0) hub.batteryPct.toString() else "--")
+        g.live(o.toString())
+    }
+
+    private fun cardinalEn(d: Float): String {
+        val n = arrayOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+        return n[((d + 22.5f) / 45f).toInt() % 8]
     }
 
     private fun autoBrightness() {
@@ -587,9 +614,11 @@ class MainActivity : Activity() {
 
     private fun onOff(b: Boolean) = if (b) "aktif" else "mati"
 
-    private fun accentName(): String {
-        val i = ACCENT_COLORS.indexOf(prefs.accent)
-        return if (i >= 0) ACCENT_NAMES[i] else "Kustom"
+    private fun gradName(): String {
+        for (i in GRAD_NAMES.indices) {
+            if (GRAD_COLORS[i * 2] == prefs.accent && GRAD_COLORS[i * 2 + 1] == prefs.accent2) return GRAD_NAMES[i]
+        }
+        return "Kustom"
     }
 
     private fun showSettings() {
@@ -603,7 +632,16 @@ class MainActivity : Activity() {
                 setGauge()
                 showSettings()
             },
-            "Warna aksen: ${accentName()}" to { askAccent() },
+            "Warna gradasi: ${gradName()}" to { askAccent() },
+            "Mode Hemat (efek animasi dikurangi): ${onOff(prefs.eco)}" to {
+                prefs.eco = !prefs.eco
+                setGauge()
+                showSettings()
+            },
+            "Tampilkan kotak sensor di bawah: ${onOff(prefs.showTiles)}" to {
+                prefs.showTiles = !prefs.showTiles
+                recreate()
+            },
             "Lebar panel speedometer: ${prefs.leftPercent}%" to { askRatio() },
             "Jumlah jendela: ${prefs.panelCount} (speedometer + ${prefs.panelCount - 1} aplikasi)" to {
                 prefs.panelCount = if (prefs.panelCount >= 3) 2 else 3
@@ -659,31 +697,35 @@ class MainActivity : Activity() {
     }
 
     private fun askAccent() {
-        val names = ACCENT_NAMES + "Roda warna (kustom)"
+        val names = GRAD_NAMES + arrayOf("Roda warna: warna 1 (awal)", "Roda warna: warna 2 (akhir)")
         AlertDialog.Builder(this, DIALOG)
-            .setTitle("Warna aksen")
+            .setTitle("Warna gradasi")
             .setItems(names) { _, which ->
-                if (which < ACCENT_COLORS.size) {
-                    prefs.accent = ACCENT_COLORS[which]
-                    recreate()
-                } else {
-                    askHue()
+                when {
+                    which < GRAD_NAMES.size -> {
+                        prefs.accent = GRAD_COLORS[which * 2]
+                        prefs.accent2 = GRAD_COLORS[which * 2 + 1]
+                        recreate()
+                    }
+                    which == GRAD_NAMES.size -> askHue(false)
+                    else -> askHue(true)
                 }
             }
             .setNegativeButton("Batal", null)
             .showLeft()
     }
 
-    private fun askHue() {
-        val wheel = ColorWheelView(this).apply { setColor(prefs.accent) }
+    private fun askHue(second: Boolean) {
+        val start = if (second) prefs.accent2 else prefs.accent
+        val wheel = ColorWheelView(this).apply { setColor(start) }
         val bar = View(this)
         fun paintBar(c: Int) {
             bar.background = android.graphics.drawable.GradientDrawable(
                 android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(Color.BLACK, c, Color.WHITE)
+                if (second) intArrayOf(prefs.accent, c) else intArrayOf(c, prefs.accent2)
             ).apply { cornerRadius = dp(6).toFloat() }
         }
-        paintBar(prefs.accent)
+        paintBar(start)
         wheel.onChange = { paintBar(it) }
         val bright = SeekBar(this).apply {
             max = 80
@@ -713,10 +755,10 @@ class MainActivity : Activity() {
             addView(bright, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         AlertDialog.Builder(this, DIALOG)
-            .setTitle("Roda warna")
+            .setTitle(if (second) "Warna 2 (akhir gradasi)" else "Warna 1 (awal gradasi)")
             .setView(ScrollView(this).apply { addView(box) })
             .setPositiveButton("Simpan") { _, _ ->
-                prefs.accent = wheel.color()
+                if (second) prefs.accent2 = wheel.color() else prefs.accent = wheel.color()
                 recreate()
             }
             .setNegativeButton("Batal", null)
@@ -825,12 +867,17 @@ class MainActivity : Activity() {
         private const val REQ_ADMIN = 101
         private const val DIALOG = android.R.style.Theme_Material_Dialog_Alert
         private const val LOCK_MSG = "Dikunci saat mobil bergerak"
-        private val STYLE_NAMES = arrayOf("LEXUS", "BMW", "MAZDA", "HONDA")
-        private val ACCENT_NAMES = arrayOf("Cyan", "Biru", "Hijau", "Oranye", "Merah", "Ungu", "Putih")
-        private val ACCENT_COLORS = intArrayOf(
-            Color.parseColor("#00E5FF"), Color.parseColor("#2F86FF"), Color.parseColor("#33FF99"),
-            Color.parseColor("#FF8A1F"), Color.parseColor("#FF3B4A"), Color.parseColor("#B26BFF"),
-            Color.parseColor("#E8F1FA")
+        private val STYLE_NAMES = arrayOf("LEXUS F-SPORT", "BMW M3", "MAZDA KODO", "HONDA TYPE R")
+        private val GRAD_NAMES = arrayOf("Cyber Neon", "Aurora", "Plasma", "Sunset", "Lava GR", "Gold", "Ice", "Toxic")
+        private val GRAD_COLORS = intArrayOf(
+            Color.parseColor("#00E5FF"), Color.parseColor("#A855F7"),
+            Color.parseColor("#00F5A0"), Color.parseColor("#00D9F5"),
+            Color.parseColor("#F72585"), Color.parseColor("#4361EE"),
+            Color.parseColor("#FF6A00"), Color.parseColor("#EE0979"),
+            Color.parseColor("#FF1E56"), Color.parseColor("#FFAC41"),
+            Color.parseColor("#F7971E"), Color.parseColor("#FFD200"),
+            Color.parseColor("#74EBD5"), Color.parseColor("#9FACE6"),
+            Color.parseColor("#B7FF00"), Color.parseColor("#00E5FF")
         )
 
         private const val T_HEAD = "head"
