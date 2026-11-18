@@ -450,23 +450,11 @@ class MainActivity : Activity() {
             toast("Menjalankan speedometer + ${targets.size} aplikasi")
             return
         }
-        if (isInMultiWindowMode) {
-            engine.launch(first, null, true)
-        } else if (SplitService.instance != null) {
-            SplitService.toggleSplit()
-            handler.postDelayed({ engine.launch(first, null, true) }, 1100L)
-        } else {
-            AlertDialog.Builder(this, DIALOG)
-                .setTitle("Aktifkan layanan Split")
-                .setMessage(
-                    "Tablet ini tidak mendukung jendela freeform, jadi launcher perlu menekan tombol split-screen sistem. " +
-                        "Aktifkan \"AutoSplit Split\" di Pengaturan > Aksesibilitas. Layanan ini tidak membaca isi layar."
-                )
-                .setPositiveButton("Buka pengaturan") { _, _ -> openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS) }
-                .setNegativeButton("Nanti", null)
-                .show()
+        if (!isInMultiWindowMode) {
+            toast("Masuk ke split-screen dulu: tekan lama tombol Recent lalu pilih AutoSplit, atau aktifkan \"Paksa mode freeform\" di ATUR.")
             return
         }
+        engine.launch(first, null, true)
         if (prefs.panelCount >= 3) {
             toast("Tablet ini belum mendukung freeform, jadi baru 2 jendela. Coba aktifkan \"Paksa mode freeform\" di ATUR.")
         } else {
@@ -540,7 +528,6 @@ class MainActivity : Activity() {
             "Kecerahan otomatis (sensor cahaya): ${onOff(prefs.autoDim)}",
             "Layar tetap menyala: ${onOff(prefs.keepScreenOn)}",
             "Paksa mode freeform (percobaan): ${onOff(prefs.forceFreeform)}",
-            "Aktifkan layanan Split (Aksesibilitas)",
             "Jadikan launcher utama"
         )
         AlertDialog.Builder(this, DIALOG)
@@ -576,8 +563,7 @@ class MainActivity : Activity() {
                         prefs.forceFreeform = !prefs.forceFreeform
                         showSettings()
                     }
-                    7 -> openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    8 -> openSettings(Settings.ACTION_HOME_SETTINGS)
+                    7 -> openSettings(Settings.ACTION_HOME_SETTINGS)
                 }
             }
             .setNegativeButton("Tutup", null)
@@ -629,7 +615,6 @@ class MainActivity : Activity() {
         append("Multi-window sekarang: ${if (isInMultiWindowMode) "ya" else "tidak"}\n")
         append("Fitur freeform sistem: ${if (engine.systemHasFreeform()) "ada" else "tidak ada"}\n")
         append("Paksa freeform: ${onOff(prefs.forceFreeform)}\n")
-        append("Layanan Split: ${if (SplitService.instance != null) "aktif" else "mati"}\n")
         append("GPS: ${hub.gpsStatus()}\n")
         val compass = when {
             hub.hasRotation -> "rotation vector"
