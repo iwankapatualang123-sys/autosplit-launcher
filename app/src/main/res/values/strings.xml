@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AutoSplit</string>
+    <string name="a11y_label">AutoSplit Split</string>
+    <string name="a11y_desc">Dipakai hanya untuk menekan tombol split-screen sistem agar speedometer dan aplikasi bisa tampil berdampingan. Tidak membaca isi layar.</string>
+</resources>
