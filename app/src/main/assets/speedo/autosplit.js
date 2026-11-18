@@ -266,8 +266,10 @@
   if (window.ElioSpeedo && root) {
     var baseSetSpeed = window.ElioSpeedo.setSpeed, baseSetG = window.ElioSpeedo.setGForce;
     var tS = 0, dS = 0, tG = 0, dG = 0, gOn = false, lastTs = 0, animating = false, shownS = -1;
+    var fillEl = fx && fx.querySelector('.as-speed-fill');
     var step = function (ts) {
-      var dt = lastTs ? Math.min(0.1, (ts - lastTs) / 1000) : 0.016;
+      if (lastTs && ts - lastTs < 30) { requestAnimationFrame(step); return; }
+      var dt = lastTs ? Math.min(0.1, (ts - lastTs) / 1000) : 0.033;
       lastTs = ts;
       var k = 1 - Math.exp(-dt / 0.22);
       dS += (tS - dS) * k;
@@ -278,7 +280,7 @@
       var r = Math.round(dS);
       if (gOn && !doneG) baseSetG(dG);
       if (r !== shownS || (gOn && doneG)) { shownS = r; baseSetSpeed(r); }
-      root.style.setProperty('--as-speed', Math.min(1, dS / 200).toFixed(3));
+      if (fillEl) fillEl.style.transform = 'translateY(' + ((1 - Math.min(1, dS / 200)) * 100).toFixed(1) + '%)';
       if (doneS && doneG) { animating = false; lastTs = 0; if (gOn) baseSetG(dG); } else requestAnimationFrame(step);
     };
     var kick = function () { if (!animating) { animating = true; requestAnimationFrame(step); } };
@@ -288,11 +290,28 @@
       tG = Number(g); gOn = true; kick();
     };
   }
+  /* Bingkai berjalan di dalam speedometer: sudut gradasi diperbarui ~20 kali per detik
+     hanya saat mode Berjalan aktif. */
+  var card = root && root.querySelector('.speedo-card');
+  var ring = null;
+  if (card) {
+    ring = document.createElement('div');
+    ring.className = 'as-ring';
+    card.appendChild(ring);
+  }
+  var runGrad = document.getElementById('asRunGrad');
+  var frameSec = 9, frameTimer = 0;
+  function frameTick() {
+    var on = root && root.classList.contains('as-frame-run');
+    if (!on) { clearInterval(frameTimer); frameTimer = 0; return; }
+    var a = (performance.now() / 1000 / frameSec * 360) % 360;
+    if (ring) ring.style.setProperty('--as-a', a.toFixed(1) + 'deg');
+    if (runGrad) runGrad.setAttribute('gradientTransform', 'rotate(' + a.toFixed(1) + ' 220 170)');
+  }
   window.AutoSplitFx = {
     setFrameSpeed: function (sec) {
-      if (root) root.style.setProperty('--as-frame-dur', sec + 's');
-      var spin = document.getElementById('asRunSpin');
-      if (spin) spin.setAttribute('dur', sec + 's');
+      frameSec = Math.max(1, Number(sec) || 9);
+      if (!frameTimer && root && root.classList.contains('as-frame-run')) frameTimer = setInterval(frameTick, 50);
     }
   };
   window.addEventListener('resize', schedule);

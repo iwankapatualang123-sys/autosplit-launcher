@@ -14,7 +14,7 @@
   function css(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
 
   function size() {
-    var r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    var r = cv.getBoundingClientRect(), d = 1;
     cv.width = Math.max(1, Math.round(r.width * d));
     cv.height = Math.max(1, Math.round(r.height * d));
   }
@@ -78,15 +78,17 @@
   }
 
   function draw() {
-    if (cv.width !== Math.round(cv.getBoundingClientRect().width * (window.devicePixelRatio || 1))) size();
+    if (cv.width !== Math.round(cv.getBoundingClientRect().width)) size();
     ctx.clearRect(0, 0, cv.width, cv.height);
     if (!bands.length || mode === 'off') return;
     var st = window.ElioSpeedo ? ElioSpeedo.style : 'lfa';
     if (mode === 'wave') drawWave(); else drawBars(st === 'honda');
   }
 
-  var target = [], lastRecv = 0, animating = false;
-  function step() {
+  var target = [], lastRecv = 0, animating = false, lastDraw = 0;
+  function step(ts) {
+    if (ts - lastDraw < 30) { requestAnimationFrame(step); return; }
+    lastDraw = ts;
     if (performance.now() - lastRecv > 500) target = [];
     var active = false;
     for (var i = 0; i < bands.length; i++) {

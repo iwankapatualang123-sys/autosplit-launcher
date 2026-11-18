@@ -58,13 +58,14 @@ class MainActivity : Activity() {
     private var lowBatWarned = 100
     private var lowBatDialog: AlertDialog? = null
     private val animViews = ArrayList<View>()
-    private var frameTick = 0
+    private var lastFrameNs = 0L
 
-    /** Menggambar ulang semua bingkai ~30 kali per detik selama mode Berjalan aktif. */
+    /** Menggambar ulang semua bingkai ~25 kali per detik selama mode Berjalan aktif. */
     private val frameCallback = object : android.view.Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!Ambient.running) return
-            if (frameTick++ % 2 == 0) {
+            if (frameTimeNanos - lastFrameNs >= 40_000_000L) {
+                lastFrameNs = frameTimeNanos
                 overlay.invalidate()
                 for (v in animViews) v.invalidate()
             }

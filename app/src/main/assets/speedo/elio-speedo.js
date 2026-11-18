@@ -42,7 +42,8 @@
 
   // Efek reaktif kecepatan: cahaya makin terang, grid makin cepat mengalir.
   function applySpeedFx(kmh) {
-    root.style.setProperty('--speed-ratio', Math.min(1, kmh / 160).toFixed(2));
+    const glowEl = root.querySelector('.speedo-glow');
+    (glowEl || root).style.setProperty('--speed-ratio', Math.min(1, kmh / 160).toFixed(2));
     const bucket = kmh < 3 ? 0 : Math.min(16, Math.ceil(kmh / 10)); // per 10 km/h agar tidak tersentak
     if (bucket === lastGridBucket) return;
     lastGridBucket = bucket;
