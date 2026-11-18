@@ -10,6 +10,7 @@
   var ctx = cv.getContext('2d');
   var bands = [];
   var mode = 'off';
+  var lite = false;
 
   function css(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
 
@@ -51,7 +52,7 @@
 
   function drawWave() {
     var n = bands.length, W = cv.width, H = cv.height, maxH = H * 0.42;
-    var layers = [[1.0, 0.5, 0], [0.7, 0.3, 0.33], [0.45, 0.18, 0.66]];
+    var layers = lite ? [[1.0, 0.5, 0]] : [[1.0, 0.5, 0], [0.7, 0.3, 0.33], [0.45, 0.18, 0.66]];
     layers.forEach(function (L) {
       var amp = L[0], alpha = L[1], ph = L[2];
       var pts = [];
@@ -87,7 +88,7 @@
 
   var target = [], lastRecv = 0, animating = false, lastDraw = 0;
   function step(ts) {
-    if (ts - lastDraw < 30) { requestAnimationFrame(step); return; }
+    if (ts - lastDraw < (lite ? 64 : 30)) { requestAnimationFrame(step); return; }
     lastDraw = ts;
     if (performance.now() - lastRecv > 500) target = [];
     var active = false;
@@ -104,8 +105,14 @@
 
   window.ElioEq = {
     setMode: function (m) { mode = m; if (m === 'off') { bands = []; target = []; } draw(); },
+    setLite: function (on) { if (lite !== !!on) { lite = !!on; bands = []; target = []; draw(); } },
     setBands: function (b) {
       if (mode === 'off') return;
+      if (lite) {
+        var h = [];
+        for (var j = 0; j + 1 < b.length; j += 2) h.push((b[j] + b[j + 1]) / 2);
+        b = h;
+      }
       target = b.slice();
       lastRecv = performance.now();
       while (bands.length < b.length) bands.push(0);

@@ -300,7 +300,7 @@
     card.appendChild(ring);
   }
   var runGrad = document.getElementById('asRunGrad');
-  var frameSec = 9, frameTimer = 0;
+  var frameSec = 9, frameTimer = 0, frameLite = false;
   function frameTick() {
     var on = root && root.classList.contains('as-frame-run');
     if (!on) { clearInterval(frameTimer); frameTimer = 0; return; }
@@ -309,9 +309,13 @@
     if (runGrad) runGrad.setAttribute('gradientTransform', 'rotate(' + a.toFixed(1) + ' 220 170)');
   }
   window.AutoSplitFx = {
+    setFrameLite: function (on) {
+      if (frameLite !== !!on && frameTimer) { clearInterval(frameTimer); frameTimer = 0; }
+      frameLite = !!on;
+    },
     setFrameSpeed: function (sec) {
       frameSec = Math.max(1, Number(sec) || 9);
-      if (!frameTimer && root && root.classList.contains('as-frame-run')) frameTimer = setInterval(frameTick, 50);
+      if (!frameTimer && root && root.classList.contains('as-frame-run')) frameTimer = setInterval(frameTick, frameLite ? 100 : 50);
     }
   };
   window.addEventListener('resize', schedule);

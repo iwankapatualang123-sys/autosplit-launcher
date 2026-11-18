@@ -81,10 +81,12 @@ class SlotOverlay(ctx: Context) : View(ctx) {
             rot.setRotate(Ambient.angle(), width / 2f, height / 2f)
             sg.setLocalMatrix(rot)
             screenPaint.shader = sg
-            glowWide.shader = sg
-            glowMid.shader = sg
-            c.drawRoundRect(box, radius, radius, glowWide)
-            c.drawRoundRect(box, radius, radius, glowMid)
+            if (!Ambient.lite) {
+                glowWide.shader = sg
+                glowMid.shader = sg
+                c.drawRoundRect(box, radius, radius, glowWide)
+                c.drawRoundRect(box, radius, radius, glowMid)
+            }
         } else {
             screenPaint.shader = null
             screenPaint.color = Pal.accent

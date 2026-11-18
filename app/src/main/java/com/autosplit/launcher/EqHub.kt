@@ -18,8 +18,13 @@ class EqHub(private val onBands: (FloatArray) -> Unit) {
 
     val running: Boolean get() = vis != null
 
-    fun start(): Boolean {
-        if (vis != null) return true
+    private var liteMode = false
+
+    /** [lite] = Hemat equalizer: data diambil 10 kali per detik, bukan 20. */
+    fun start(lite: Boolean): Boolean {
+        if (vis != null && lite == liteMode) return true
+        stop()
+        liteMode = lite
         var v: Visualizer? = null
         return try {
             v = Visualizer(0)
@@ -32,7 +37,7 @@ class EqHub(private val onBands: (FloatArray) -> Unit) {
                 override fun onFftDataCapture(vz: Visualizer?, fft: ByteArray?, rate: Int) {
                     if (fft != null) process(fft)
                 }
-            }, minOf(Visualizer.getMaxCaptureRate(), 20000), false, true)
+            }, minOf(Visualizer.getMaxCaptureRate(), if (lite) 10000 else 20000), false, true)
             v.enabled = true
             vis = v
             true

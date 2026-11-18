@@ -49,6 +49,14 @@ class Prefs(ctx: Context) {
         get() = sp.getInt("framespeed", 1)
         set(v) = sp.edit().putInt("framespeed", v).apply()
 
+    var ecoFrame: Boolean
+        get() = sp.getBoolean("ecoframe", false)
+        set(v) = sp.edit().putBoolean("ecoframe", v).apply()
+
+    var ecoEq: Boolean
+        get() = sp.getBoolean("ecoeq", false)
+        set(v) = sp.edit().putBoolean("ecoeq", v).apply()
+
     var showTiles: Boolean
         get() = sp.getBoolean("tiles", false)
         set(v) = sp.edit().putBoolean("tiles", v).apply()

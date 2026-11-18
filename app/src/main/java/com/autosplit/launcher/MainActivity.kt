@@ -64,7 +64,7 @@ class MainActivity : Activity() {
     private val frameCallback = object : android.view.Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!Ambient.running) return
-            if (frameTimeNanos - lastFrameNs >= 40_000_000L) {
+            if (frameTimeNanos - lastFrameNs >= if (Ambient.lite) 80_000_000L else 40_000_000L) {
                 lastFrameNs = frameTimeNanos
                 overlay.invalidate()
                 for (v in animViews) v.invalidate()
@@ -389,8 +389,9 @@ class MainActivity : Activity() {
     private fun setGauge() {
         val g = gauge ?: SpeedoView(this)
         g.configure(
-            prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco, if (prefs.eco) 0 else prefs.eqMode,
-            prefs.frameRunning && !prefs.eco, FRAME_SPEEDS[prefs.frameSpeed.coerceIn(0, FRAME_SPEEDS.size - 1)]
+            prefs.gaugeStyle, prefs.accent, prefs.accent2, prefs.eco, prefs.eqMode,
+            prefs.frameRunning, FRAME_SPEEDS[prefs.frameSpeed.coerceIn(0, FRAME_SPEEDS.size - 1)],
+            prefs.ecoFrame, prefs.ecoEq
         )
         if (g.parent == null) holder.addView(g, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         gauge = g
@@ -633,14 +634,15 @@ class MainActivity : Activity() {
     /** Bingkai layar berjalan/diam dan equalizer, mengikuti pengaturan dan Mode Hemat. */
     private fun applyEffects() {
         Ambient.periodMs = FRAME_SPEEDS[prefs.frameSpeed.coerceIn(0, FRAME_SPEEDS.size - 1)] * 1000L
-        Ambient.running = prefs.frameRunning && !prefs.eco
+        Ambient.running = prefs.frameRunning
+        Ambient.lite = prefs.ecoFrame
         val choreo = android.view.Choreographer.getInstance()
         choreo.removeFrameCallback(frameCallback)
         if (Ambient.running) choreo.postFrameCallback(frameCallback)
         overlay.invalidate()
         for (v in animViews) v.invalidate()
-        if (prefs.eqMode > 0 && !prefs.eco && hasAudioPermission()) {
-            if (!eq.start() && !eqWarned) {
+        if (prefs.eqMode > 0 && hasAudioPermission()) {
+            if (!eq.start(prefs.ecoEq) && !eqWarned) {
                 eqWarned = true
                 toast("Equalizer tidak didukung di perangkat ini")
             }
@@ -725,7 +727,7 @@ class MainActivity : Activity() {
                 showSettings()
             },
             "Warna gradasi: ${gradName()}" to { askAccent() },
-            "Mode Hemat (efek animasi dikurangi): ${onOff(prefs.eco)}" to {
+            "Hemat speedometer (grid & lampu template diam): ${onOff(prefs.eco)}" to {
                 prefs.eco = !prefs.eco
                 setGauge()
                 applyEffects()
@@ -742,6 +744,18 @@ class MainActivity : Activity() {
             },
             "Bingkai (layar, speedometer, kartu, menu): ${if (prefs.frameRunning) "Berjalan (gradasi)" else "Diam"}" to {
                 prefs.frameRunning = !prefs.frameRunning
+                setGauge()
+                applyEffects()
+                showSettings()
+            },
+            "Hemat bingkai (lebih jarang digambar, tanpa pendar): ${onOff(prefs.ecoFrame)}" to {
+                prefs.ecoFrame = !prefs.ecoFrame
+                setGauge()
+                applyEffects()
+                showSettings()
+            },
+            "Hemat equalizer (16 batang, 15 fps): ${onOff(prefs.ecoEq)}" to {
+                prefs.ecoEq = !prefs.ecoEq
                 setGauge()
                 applyEffects()
                 showSettings()

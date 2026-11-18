@@ -10,5 +10,9 @@ object Ambient {
     @Volatile
     var periodMs = 9000L
 
+    /** Hemat bingkai: digambar lebih jarang dan tanpa pendar. */
+    @Volatile
+    var lite = false
+
     fun angle(): Float = (SystemClock.uptimeMillis() % periodMs) * 360f / periodMs
 }
