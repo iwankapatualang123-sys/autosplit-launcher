@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -29,3 +32,12 @@ jobs:
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
+
+      - name: Terbitkan APK sebagai Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk AutoSplit-release.apk
+          cp app/build/outputs/apk/debug/app-debug.apk AutoSplit-debug.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest AutoSplit-release.apk AutoSplit-debug.apk --title "AutoSplit terbaru" --notes "APK hasil build otomatis" --target "${{ github.sha }}"
