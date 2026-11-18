@@ -150,14 +150,14 @@
     var podBottom = 0;
     if (pod) {
       var pb = pod.getBBox();
-      var kp = Math.min(1.25, H / BH, CENTER_W / pb.width);
+      var kp = Math.min(1.25, H / BH, (CENTER_W - 28) / pb.width);  // jarak ~14 ke kotak sensor kiri/kanan
       touch(pod, 'transform', 'translate(220 6) scale(' + kp.toFixed(3) + ') translate(-220 -6) ' + (orig(pod, 'transform') || ''));
       podBottom = 6 + (pb.y + pb.height - 6) * kp;
     }
     if (dial) {
       var dr = dial.getBBox().width / 2;
       var top = podBottom + 14, avail = H - 8 - top;
-      var k = Math.max(1, Math.min(CENTER_W / (2 * dr), avail / (2 * dr)));
+      var k = Math.min((CENTER_W - 28) / (2 * dr), avail / (2 * dr));  // jarak ~14 ke kotak sensor
       var cy = top + avail / 2;
       touch(dial, 'transform', 'translate(220 ' + cy.toFixed(1) + ') scale(' + k.toFixed(3) + ')');
       if (laser) {
@@ -190,16 +190,17 @@
   function fitReadout(box, svg, w, h) {
     var el = box.querySelector('#hondaSpeedDisplay, #speedDisplay');
     if (!el) return;
-    var avail;
+    var avail, unitW;
     if (box.id === 'cluster_m3') {
-      avail = 170 * (w / BW);
+      avail = 250 * (w / BW);   // ruang di antara label tangga kiri dan kanan
+      unitW = 44;
     } else {
       var vb = svg.viewBox.baseVal;
       avail = 160 * Math.min(w / vb.width, h / vb.height);
+      unitW = 0;                // Honda: KM/H di bawah angka
     }
-    var unitW = 44;
-    var px = (0.9 * avail - unitW) / (3 * 0.62);
-    px = Math.max(28, Math.min(px, 0.16 * window.innerHeight, 144));
+    var px = (0.94 * avail - unitW) / (3 * 0.62);
+    px = Math.max(28, Math.min(px, 0.26 * window.innerHeight, 210));
     el.style.setProperty('font-size', px.toFixed(0) + 'px', 'important');
   }
 

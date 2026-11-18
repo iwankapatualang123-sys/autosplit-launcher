@@ -96,3 +96,7 @@
 .elio-speedo:not(.as-frame-run) .elio-wing,
 .elio-speedo:not(.as-frame-run) .elio-frame,
 .elio-speedo:not(.as-frame-run) .elio-frame-line { stroke: url(#asGloss); }
+
+/* Angka kecepatan Honda: satuan di bawah angka agar angka memakai seluruh lebar bingkai tengah. */
+.elio-speedo #cluster_honda .skew-speed { flex-direction: column; align-items: center; }
+.elio-speedo #cluster_honda .skew-speed > span:last-child { margin-left: 0; margin-top: 2px; font-size: 0.9rem; }
