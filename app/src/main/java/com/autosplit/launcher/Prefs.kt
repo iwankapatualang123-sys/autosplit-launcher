@@ -2,6 +2,7 @@ package com.autosplit.launcher
 
 import android.content.Context
 import android.graphics.Color
+import android.os.Build
 
 object Pal {
     val BG = Color.parseColor("#05070D")
@@ -34,7 +35,7 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit().putString("panelB", v).apply()
 
     var leftPercent: Int
-        get() = sp.getInt("left", 34)
+        get() = sp.getInt("left", 40)
         set(v) = sp.edit().putInt("left", v).apply()
 
     var panelCount: Int
@@ -45,6 +46,10 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("hiburan", false)
         set(v) = sp.edit().putBoolean("hiburan", v).apply()
 
+    var panelsActive: Boolean
+        get() = sp.getBoolean("panelsactive", false)
+        set(v) = sp.edit().putBoolean("panelsactive", v).apply()
+
     var autoDim: Boolean
         get() = sp.getBoolean("autodim", true)
         set(v) = sp.edit().putBoolean("autodim", v).apply()
@@ -54,7 +59,7 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit().putBoolean("keepon", v).apply()
 
     var forceFreeform: Boolean
-        get() = sp.getBoolean("forcefree", false)
+        get() = sp.getBoolean("forcefree", Build.MANUFACTURER.equals("samsung", ignoreCase = true))
         set(v) = sp.edit().putBoolean("forcefree", v).apply()
 
     companion object {

@@ -10,7 +10,7 @@ import android.view.WindowManager
 
 /**
  * Meluncurkan aplikasi ke panel. Dua jalur:
- * - freeform: tiap aplikasi diluncurkan dengan batas ukuran (launch bounds).
+ * - freeform / pop-up: tiap aplikasi diluncurkan dengan batas ukuran (launch bounds).
  * - split: aplikasi diluncurkan ke sisi seberang launcher (FLAG_ACTIVITY_LAUNCH_ADJACENT).
  */
 class PanelEngine(private val ctx: Context, private val prefs: Prefs) {
@@ -37,29 +37,38 @@ class PanelEngine(private val ctx: Context, private val prefs: Prefs) {
         return p
     }
 
-    /** Susunan Navigasi: A di atas (besar), B di bawah. Susunan Hiburan: sebaliknya. */
-    fun boundsA(): Rect = when {
-        prefs.panelCount < 3 -> full()
-        prefs.entertainmentLayout -> lower()
-        else -> upper()
-    }
+    private fun px(dp: Float): Int = (dp * ctx.resources.displayMetrics.density + 0.5f).toInt()
 
-    fun boundsB(): Rect = if (prefs.entertainmentLayout) upper() else lower()
-
-    private fun full(): Rect {
+    /**
+     * Susunan jendela di sisi kanan layar. Semua jendela punya tepi kiri, kanan, atas, dan bawah
+     * yang sejajar dengan panel speedometer, dengan jarak tetap supaya bingkai neon (SlotOverlay)
+     * pas mengelilinginya. Navigasi: A besar di atas, B kecil di bawah. Hiburan: sebaliknya.
+     */
+    private fun layout(): Pair<Rect, Rect> {
         val s = screenSize()
-        return Rect(s.x * prefs.leftPercent / 100, 0, s.x, s.y)
+        val edge = px(14f)
+        val strip = px(SlotOverlay.STRIP_DP)
+        val pad = px(SlotOverlay.PAD_DP)
+        val x0 = s.x * prefs.leftPercent / 100 + edge
+        val x1 = s.x - edge
+        val top = edge + strip
+        val bottom = s.y - edge - pad
+
+        if (prefs.panelCount < 3) {
+            val r = Rect(x0, top, x1, bottom)
+            return r to r
+        }
+        val gap = pad + strip + px(8f)
+        val total = bottom - top
+        val bigH = ((total - gap) * 0.6f).toInt()
+        val upper = Rect(x0, top, x1, top + bigH)
+        val lower = Rect(x0, top + bigH + gap, x1, bottom)
+        return if (prefs.entertainmentLayout) lower to upper else upper to lower
     }
 
-    private fun upper(): Rect {
-        val s = screenSize()
-        return Rect(s.x * prefs.leftPercent / 100, 0, s.x, s.y * 62 / 100)
-    }
+    fun boundsA(): Rect = layout().first
 
-    private fun lower(): Rect {
-        val s = screenSize()
-        return Rect(s.x * prefs.leftPercent / 100, s.y * 62 / 100, s.x, s.y)
-    }
+    fun boundsB(): Rect = layout().second
 
     fun launch(pkg: String, bounds: Rect?, adjacent: Boolean): Boolean {
         val intent = ctx.packageManager.getLaunchIntentForPackage(pkg) ?: return false

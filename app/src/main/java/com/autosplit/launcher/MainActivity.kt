@@ -47,12 +47,17 @@ class MainActivity : Activity() {
     private lateinit var btnB: TextView
     private lateinit var btnStyle: TextView
     private lateinit var btnStart: TextView
+    private lateinit var overlay: SlotOverlay
 
     private var gauge: GaugeView? = null
     private val tileValues = HashMap<String, TextView>()
     private val tileBoxes = HashMap<String, View>()
 
-    private var panelsActive = false
+    private var panelsActive: Boolean
+        get() = prefs.panelsActive
+        set(v) {
+            prefs.panelsActive = v
+        }
     private var tick = 0
     private var lastBrightness = -2f
 
@@ -115,7 +120,7 @@ class MainActivity : Activity() {
     private fun buildUi() {
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Pal.BG)
+            background = HudBackground(resources.displayMetrics.density)
         }
 
         val status = LinearLayout(this).apply {
@@ -190,7 +195,11 @@ class MainActivity : Activity() {
         root.addView(grid, LinearLayout.LayoutParams(full, wrap))
         root.addView(dock, LinearLayout.LayoutParams(full, wrap))
         root.setPadding(dp(8), dp(6), dp(8), dp(6))
-        setContentView(root)
+        overlay = SlotOverlay(this)
+        val frame = FrameLayout(this)
+        frame.addView(root, FrameLayout.LayoutParams(full, full))
+        frame.addView(overlay, FrameLayout.LayoutParams(full, full))
+        setContentView(frame)
 
         setGauge()
     }
@@ -291,6 +300,36 @@ class MainActivity : Activity() {
         val reserve = panelsActive && !isInMultiWindowMode
         val right = if (reserve) real.x * (100 - prefs.leftPercent) / 100 else 0
         root.setPadding(dp(8), dp(6), dp(8) + right, dp(6))
+        updateOverlay()
+    }
+
+    private fun updateOverlay() {
+        if (!(panelsActive && !isInMultiWindowMode)) {
+            overlay.setSlots(emptyList())
+            return
+        }
+        val list = ArrayList<SlotOverlay.Slot>()
+        list.add(SlotOverlay.Slot(engine.boundsA(), "A  " + engine.labelOf(prefs.panelA).uppercase()))
+        if (prefs.panelCount >= 3) {
+            list.add(SlotOverlay.Slot(engine.boundsB(), "B  " + engine.labelOf(prefs.panelB).uppercase()))
+        }
+        overlay.setSlots(list)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun immersive() {
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) immersive()
     }
 
     // ---------- Pembaruan data ----------
@@ -553,7 +592,7 @@ class MainActivity : Activity() {
             textSize = 18f
         }
         val sb = SeekBar(this).apply {
-            max = 25
+            max = 35
             progress = prefs.leftPercent - 25
         }
         sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -572,7 +611,7 @@ class MainActivity : Activity() {
             addView(sb)
         }
         AlertDialog.Builder(this, DIALOG)
-            .setTitle("Lebar panel speedometer (25 sampai 50%)")
+            .setTitle("Lebar panel speedometer (25 sampai 60%)")
             .setView(box)
             .setPositiveButton("Simpan") { _, _ ->
                 prefs.leftPercent = sb.progress + 25
