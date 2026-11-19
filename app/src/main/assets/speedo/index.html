@@ -613,6 +613,7 @@
       set('.live-sats-val', d.sats); set('.live-gnss-status', d.gnss); set('.live-max', d.max);
       set('.live-avg', d.avg); set('.live-btemp', d.btemp); set('.live-time', d.time);
       tpl('.live-acc-status', 'ACTIVE', d.acc); tpl('.live-battery-status', '--', d.bat);
+      set('.live-sats-num', String(d.sats || '').replace(/^[^\x00-\x7F]+\s*/, '').replace(/\s*SATS$/, ''));
       set('.live-m3info', 'ALT ' + d.alt + ' m  \u2022  ' + d.head + '  \u2022  ' + String(d.sats || '').replace(/^[^\x00-\x7F]+\s*/, ''));
     }
   };

@@ -94,7 +94,7 @@
     var active = false;
     for (var i = 0; i < bands.length; i++) {
       var t = target[i] || 0, d = bands[i];
-      d += (t - d) * (t > d ? 0.45 : 0.1);
+      d += (t - d) * (t > d ? 0.9 : 0.12);
       if (d < 0.003) d = 0;
       bands[i] = d;
       if (d > 0 || t > 0.01) active = true;
@@ -117,6 +117,8 @@
       lastRecv = performance.now();
       while (bands.length < b.length) bands.push(0);
       bands.length = b.length;
+      for (var i = 0; i < b.length; i++) if (b[i] > bands[i]) bands[i] = b[i];
+      draw();
       if (!animating) { animating = true; requestAnimationFrame(step); }
     },
     redraw: draw

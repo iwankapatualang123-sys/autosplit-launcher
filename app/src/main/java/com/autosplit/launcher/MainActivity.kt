@@ -434,9 +434,7 @@ class MainActivity : Activity() {
             overlay.setSlots(emptyList())
             return
         }
-        val top = dp(14) + dp(SlotOverlay.STRIP_DP.toInt())
         val list = ArrayList<SlotOverlay.Slot>()
-        list.add(SlotOverlay.Slot(Rect(dp(14), top, dp(14), top), "SPEEDOMETER", false))
         list.add(SlotOverlay.Slot(engine.boundsA(), "A  " + engine.labelOf(prefs.panelA).uppercase(Locale.US)))
         if (prefs.panelCount >= 3) {
             list.add(SlotOverlay.Slot(engine.boundsB(), "B  " + engine.labelOf(prefs.panelB).uppercase(Locale.US)))
