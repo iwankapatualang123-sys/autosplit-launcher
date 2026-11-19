@@ -15,13 +15,26 @@ android {
         versionName = "0.1.0"
     }
 
+    // Kunci tanda tangan tetap agar update APK bisa dipasang di atas versi sebelumnya.
+    // Kunci ini hanya untuk aplikasi pribadi yang dipasang manual (bukan Play Store).
+    signingConfigs {
+        create("autosplit") {
+            storeFile = file("autosplit.keystore")
+            storePassword = "autosplit"
+            keyAlias = "autosplit"
+            keyPassword = "autosplit"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("autosplit")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Ditandatangani dengan kunci debug agar APK release langsung bisa dipasang.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("autosplit")
         }
     }
 
