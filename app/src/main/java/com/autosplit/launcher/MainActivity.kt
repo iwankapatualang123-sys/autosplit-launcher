@@ -978,7 +978,7 @@ class MainActivity : Activity() {
         append("Fitur freeform sistem: ${if (engine.systemHasFreeform()) "ada" else "tidak ada"}\n")
         append("Paksa freeform: ${onOff(prefs.forceFreeform)}\n")
         append("GPS: ${hub.gpsStatus()}\n")
-        append("Izin Penghemat daya (ADB): ${if (PowerSaver.canControl(this)) "sudah" else "belum"}\n")
+        append("Izin Penghemat daya (ADB): ${if (PowerSaver.canControl(this@MainActivity)) "sudah" else "belum"}\n")
         append("Ketinggian: ${when {
             !hub.mslAltitude().isNaN() -> f("%.0f mdpl (NMEA, di atas permukaan laut)", hub.mslAltitude())
             !hub.pressureHpa.isNaN() -> "dari barometer (perkiraan mdpl)"
