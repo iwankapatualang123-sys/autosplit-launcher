@@ -58,6 +58,9 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
         private set
     var satsVisible = 0
         private set
+    private var mslAlt = Double.NaN
+    private var mslTime = 0L
+    private val nmea = android.location.OnNmeaMessageListener { msg, _ -> parseNmea(msg) }
     private var speedMps = 0f
     private var lastFixElapsed = 0L
     private var lastLoc: Location? = null
@@ -153,6 +156,10 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
                 lm.registerGnssStatusCallback(gnss, main)
             } catch (e: Exception) {
             }
+            try {
+                lm.addNmeaListener(nmea, main)
+            } catch (e: Exception) {
+            }
         }
 
         val rotation = reg(Sensor.TYPE_ROTATION_VECTOR, SensorManager.SENSOR_DELAY_UI)
@@ -186,6 +193,10 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
             lm.unregisterGnssStatusCallback(gnss)
         } catch (e: Exception) {
         }
+        try {
+            lm.removeNmeaListener(nmea)
+        } catch (e: Exception) {
+        }
         hasAccSample = false
         hasMagSample = false
     }
@@ -204,6 +215,21 @@ class SensorHub(private val ctx: Context) : SensorEventListener, LocationListene
         if (lastFixElapsed == 0L) return 0f
         return if (SystemClock.elapsedRealtime() - lastFixElapsed > 4000L) 0f else speedMps
     }
+
+    /** Kalimat GGA: kolom 6 = kualitas fix, kolom 9 = ketinggian di atas permukaan laut (meter). */
+    private fun parseNmea(m: String) {
+        if (m.length < 7 || m[0] != '$' || !m.regionMatches(3, "GGA", 0, 3)) return
+        val f = m.split(',')
+        if (f.size < 10) return
+        if ((f[6].toIntOrNull() ?: 0) == 0) return
+        val alt = f[9].toDoubleOrNull() ?: return
+        mslAlt = alt
+        mslTime = SystemClock.elapsedRealtime()
+    }
+
+    /** Ketinggian mdpl dari NMEA bila masih baru (10 detik), selain itu NaN. */
+    fun mslAltitude(): Double =
+        if (mslTime > 0 && SystemClock.elapsedRealtime() - mslTime < 10000L) mslAlt else Double.NaN
 
     fun gpsStatus(): String {
         if (!hasGpsHardware) return "GPS tidak tersedia di perangkat ini"

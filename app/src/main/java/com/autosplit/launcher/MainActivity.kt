@@ -473,15 +473,16 @@ class MainActivity : Activity() {
         tileValues[T_HEAD]?.text = if (h.isNaN()) "—" else "${h.roundToInt() % 360}° ${cardinal(h)}"
 
         val alt = when {
-            !hub.altitudeM.isNaN() -> hub.altitudeM
+            !hub.mslAltitude().isNaN() -> hub.mslAltitude()
             !hub.pressureHpa.isNaN() ->
                 SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, hub.pressureHpa).toDouble()
+            !hub.altitudeM.isNaN() -> hub.altitudeM
             else -> Double.NaN
         }
         tileValues[T_ALT]?.text = when {
             alt.isNaN() -> "—"
             mph -> f("%.0f ft", alt * 3.28084)
-            else -> f("%.0f m", alt)
+            else -> f("%.0f mdpl", alt)
         }
 
         tileValues[T_G]?.text = if (hub.hasLinear || hub.hasAccel) f("%.2f G", hub.gForce) else "—"
@@ -649,6 +650,27 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Petunjuk memberi izin Penghemat daya lewat ADB (sekali saja, butuh komputer). */
+    private fun showAdbHelp() {
+        val tv = TextView(this).apply {
+            setTextIsSelectable(true)
+            setTextColor(Pal.TEXT)
+            textSize = 14f
+            setPadding(dp(24), dp(12), dp(24), dp(4))
+            text = "Android hanya mengizinkan Penghemat daya diatur aplikasi yang diberi izin khusus. " +
+                "Lakukan sekali saja:\n\n" +
+                "1. Aktifkan Opsi pengembang lalu Debugging USB di tablet.\n" +
+                "2. Sambungkan tablet ke komputer yang sudah terpasang ADB (platform-tools).\n" +
+                "3. Jalankan perintah ini di komputer:\n\n" + PowerSaver.ADB_COMMAND + "\n\n" +
+                "Setelah itu buka lagi menu ini; tulisan \"perlu izin\" akan hilang."
+        }
+        AlertDialog.Builder(this, DIALOG)
+            .setTitle("Izin Penghemat daya")
+            .setView(ScrollView(this).apply { addView(tv) })
+            .setPositiveButton("Oke", null)
+            .showLeft()
+    }
+
     private fun syncChargeService() {
         if (prefs.needsChargeService) ChargeService.start(this) else ChargeService.stop(this)
     }
@@ -799,6 +821,25 @@ class MainActivity : Activity() {
                 else ShutdownActivity.requestAdmin(this, REQ_ADMIN)
             },
             "Coba pop-up matikan unit" to { ShutdownActivity.show(this) },
+            "Hemat daya saat terkunci: ${onOff(prefs.powerSaveOnLock)}${if (prefs.powerSaveOnLock && !PowerSaver.canControl(this)) " (perlu izin, ketuk)" else ""}" to {
+                if (prefs.powerSaveOnLock && !PowerSaver.canControl(this)) {
+                    showAdbHelp()
+                } else {
+                    prefs.powerSaveOnLock = !prefs.powerSaveOnLock
+                    syncChargeService()
+                    if (prefs.powerSaveOnLock && !PowerSaver.canControl(this)) showAdbHelp() else showSettings()
+                }
+            },
+            "Bluetooth nyala saat layar on: ${onOff(prefs.btOnScreenOn)}" to {
+                prefs.btOnScreenOn = !prefs.btOnScreenOn
+                syncChargeService()
+                showSettings()
+            },
+            "Wi-Fi nyala saat layar on: ${onOff(prefs.wifiOnScreenOn)}" to {
+                prefs.wifiOnScreenOn = !prefs.wifiOnScreenOn
+                syncChargeService()
+                showSettings()
+            },
             "Kecerahan otomatis (sensor cahaya): ${onOff(prefs.autoDim)}" to {
                 prefs.autoDim = !prefs.autoDim
                 showSettings()
@@ -937,6 +978,13 @@ class MainActivity : Activity() {
         append("Fitur freeform sistem: ${if (engine.systemHasFreeform()) "ada" else "tidak ada"}\n")
         append("Paksa freeform: ${onOff(prefs.forceFreeform)}\n")
         append("GPS: ${hub.gpsStatus()}\n")
+        append("Izin Penghemat daya (ADB): ${if (PowerSaver.canControl(this)) "sudah" else "belum"}\n")
+        append("Ketinggian: ${when {
+            !hub.mslAltitude().isNaN() -> f("%.0f mdpl (NMEA, di atas permukaan laut)", hub.mslAltitude())
+            !hub.pressureHpa.isNaN() -> "dari barometer (perkiraan mdpl)"
+            !hub.altitudeM.isNaN() -> f("%.0f m (GPS elipsoid, belum mdpl)", hub.altitudeM)
+            else -> "belum ada"
+        }}\n")
         append("Sinyal seluler: ${if (link.cellLevel < 0) "tidak terbaca" else "${link.cellLevel} dari 4"}\n")
         append("Sinyal Wi-Fi: ${if (link.wifiLevel < 0) "tidak terhubung" else "${link.wifiLevel} dari 4"}\n")
         val compass = when {

@@ -91,8 +91,8 @@
               <rect class="elio-wing" x="0" y="0" width="112" height="328" rx="10" fill="rgba(8,12,22,0.65)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
               <path class="elio-wing-top" d="M 16,0 L 96,0" stroke="url(#elioAccentGrad)" stroke-width="2.5" opacity="0.9" />
               
-              <text x="12" y="24" fill="#64748B" font-size="7.5" font-family="monospace" font-weight="bold">ALTITUDE (GNSS)</text>
-              <text x="12" y="46" fill="url(#elioAccentGrad)" font-size="16" font-family="monospace" font-weight="black"><tspan class="live-alt-num">0</tspan> <tspan font-size="8" fill="#64748B">m</tspan></text>
+              <text x="12" y="24" fill="#64748B" font-size="7.5" font-family="monospace" font-weight="bold">KETINGGIAN (MDPL)</text>
+              <text x="12" y="46" fill="url(#elioAccentGrad)" font-size="16" font-family="monospace" font-weight="black"><tspan class="live-alt-num">0</tspan> <tspan font-size="8" fill="#64748B">mdpl</tspan></text>
               
               <text x="12" y="74" fill="#64748B" font-size="7.5" font-family="monospace">COMPASS HEADING</text>
               <text class="live-heading-val" x="12" y="96" fill="url(#elioAccentGrad)" font-size="16" font-family="monospace" font-weight="black">N 0°</text>
@@ -297,7 +297,20 @@
 
             <div class="mt-2 flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/60 border border-white/10 text-[9px] font-mono">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span class="text-slate-300 font-bold live-m3info">BMW M3 G80 LIVE COCKPIT</span>
+              <span class="text-slate-300 font-bold">BMW M3 G80 LIVE COCKPIT</span>
+            </div>
+
+            <!-- AutoSplit: panel sensor BMW (kartu kaca kecil) -->
+            <div class="as-m3-grid">
+              <div class="as-m3-cell"><span>TRIP</span><b><i class="live-trip-km">0.0</i><small>km</small></b></div>
+              <div class="as-m3-cell"><span>KETINGGIAN</span><b><i class="live-alt-num">0</i><small>mdpl</small></b></div>
+              <div class="as-m3-cell"><span>ARAH</span><b><i class="live-heading-val">N 0°</i></b></div>
+              <div class="as-m3-cell"><span>KEC. MAKS</span><b><i class="live-max">0</i><small>km/h</small></b></div>
+              <div class="as-m3-cell"><span>RATA-RATA</span><b><i class="live-avg">0</i><small>km/h</small></b></div>
+              <div class="as-m3-cell"><span>SATELIT</span><b><i class="live-sats-num">0/0</i><small>SATS</small></b></div>
+              <div class="as-m3-cell as-m3-extra"><span>WAKTU JALAN</span><b><i class="live-time">0:00:00</i></b></div>
+              <div class="as-m3-cell as-m3-extra"><span>SUHU BATERAI</span><b><i class="live-btemp">--</i><small>°C</small></b></div>
+              <div class="as-m3-cell as-m3-extra"><span>BATERAI</span><b><i class="live-battery-status">--%</i></b></div>
             </div>
           </div>
         </div>
@@ -362,7 +375,7 @@
 
               <line x1="14" y1="116" x2="98" y2="116" stroke="rgba(255,255,255,0.08)" />
 
-              <text x="14" y="136" fill="#64748B" font-size="7.5" font-family="monospace">ALTITUDE: <tspan class="live-alt-num" fill="url(#elioAccentGrad)" font-weight="bold">0</tspan>m</text>
+              <text x="14" y="136" fill="#64748B" font-size="7.5" font-family="monospace">TINGGI: <tspan class="live-alt-num" fill="url(#elioAccentGrad)" font-weight="bold">0</tspan> mdpl</text>
               <g transform="translate(14, 144)">
                 <circle cx="12" cy="12" r="11" fill="white" stroke="#EE1C25" stroke-width="3" />
                 <text x="12" y="16" fill="#0F172A" font-size="9.5" font-family="sans-serif" font-weight="900" text-anchor="middle">80</text>
@@ -513,7 +526,7 @@
               <line x1="14" y1="134" x2="96" y2="134" stroke="rgba(255,255,255,0.08)" />
 
               <text x="14" y="156" fill="#64748B" font-size="8" font-family="monospace">KETINGGIAN</text>
-              <text x="14" y="176" fill="url(#elioAccentGrad)" font-size="11" font-family="monospace" font-weight="bold"><tspan class="live-alt-num">0</tspan> m</text>
+              <text x="14" y="176" fill="url(#elioAccentGrad)" font-size="11" font-family="monospace" font-weight="bold"><tspan class="live-alt-num">0</tspan> mdpl</text>
               <text x="14" y="198" fill="#64748B" font-size="8" font-family="monospace">KEC. MAKS</text>
               <text x="14" y="216" fill="url(#elioAccentGrad)" font-size="11" font-family="monospace" font-weight="bold"><tspan class="live-max">0</tspan> km/h</text>
 

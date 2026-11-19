@@ -113,8 +113,26 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("askunplug", true)
         set(v) = sp.edit().putBoolean("askunplug", v).apply()
 
-    /** Layanan latar depan diperlukan untuk fitur colok maupun cabut charger. */
-    val needsChargeService: Boolean get() = autoOnCharge || askOnUnplug
+    var powerSaveOnLock: Boolean
+        get() = sp.getBoolean("savelock", false)
+        set(v) = sp.edit().putBoolean("savelock", v).apply()
+
+    /** True bila Penghemat daya yang sedang menyala dinyalakan oleh AutoSplit. */
+    var saverByUs: Boolean
+        get() = sp.getBoolean("saverbyus", false)
+        set(v) = sp.edit().putBoolean("saverbyus", v).apply()
+
+    var btOnScreenOn: Boolean
+        get() = sp.getBoolean("btscreen", true)
+        set(v) = sp.edit().putBoolean("btscreen", v).apply()
+
+    var wifiOnScreenOn: Boolean
+        get() = sp.getBoolean("wifiscreen", true)
+        set(v) = sp.edit().putBoolean("wifiscreen", v).apply()
+
+    /** Layanan latar depan diperlukan untuk fitur charger, hemat daya saat terkunci, Bluetooth, dan Wi-Fi. */
+    val needsChargeService: Boolean
+        get() = autoOnCharge || askOnUnplug || powerSaveOnLock || btOnScreenOn || wifiOnScreenOn
 
     var autoStartPanels: Boolean
         get() = sp.getBoolean("autopanels", true)

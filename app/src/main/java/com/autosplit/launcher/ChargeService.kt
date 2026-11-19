@@ -30,12 +30,20 @@ class ChargeService : Service() {
                 when (i.action) {
                     Intent.ACTION_POWER_CONNECTED -> openLauncher(c)
                     Intent.ACTION_POWER_DISCONNECTED -> if (Prefs(c).askOnUnplug) ShutdownActivity.show(c)
+                    Intent.ACTION_SCREEN_OFF -> PowerSaver.onLock(c)
+                    Intent.ACTION_SCREEN_ON -> {
+                        PowerSaver.onUnlock(c)
+                        PowerSaver.bluetoothOn(c)
+                        PowerSaver.wifiOn(c)
+                    }
                 }
             }
         }
         val f = IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED)
             addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
         }
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED)
@@ -94,7 +102,7 @@ class ChargeService : Service() {
         return builder
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle("AutoSplit aktif")
-            .setContentText("Memantau pengisi daya mobil")
+            .setContentText("Memantau pengisi daya, layar, Bluetooth, dan Wi-Fi")
             .setOngoing(true)
             .build()
     }
